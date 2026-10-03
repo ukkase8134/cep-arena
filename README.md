@@ -36,7 +36,7 @@ Tek maç veya üç farklı oyundan oluşan turnuva. Eksik oyuncuları botlar tam
 | PlayStation / PS4 | Sol çubuk / yön tuşları | × veya R1 |
 | Dokunmatik | Sol joystick | Şimşek |
 
-Ayarlar → Gamepad ve titreşim: giriş kaynağı, otomatik / Xbox / PlayStation gösterimi, ölü bölge, titreşim gücü ve test düğmesi. Oyun olayları için iki motorlu rumble kullanılır. Direksiyon tipi FFB yoktur. Titreşim ve model tanıma, işletim sistemi ve kontrolcü sürücüsüne bağlıdır. Xbox 360 için uygun USB alıcısı / OTG gerekebilir.
+Ayarlar → Gamepad ve titreşim: giriş kaynağı, otomatik / Xbox / PlayStation gösterimi, ölü bölge, titreşim gücü ve test düğmesi. İki motorlu rumble, çarpışmada güçlü; turbo, zıplama ve kalkanda farklı kısa darbeler; kristal, gol ve maç sonucunda ayrı efektler verir. Direksiyon tipi FFB yoktur. Titreşim ve model tanıma, işletim sistemi ve kontrolcü sürücüsüne bağlıdır. Xbox 360 için uygun USB alıcısı / OTG gerekebilir.
 
 ## Derleme
 

@@ -7,7 +7,7 @@ Android ve Windows için Türkçe, 2–4 kişilik mini oyun koleksiyonu.
 - Aynı ağdaki ayrı cihazlardan LAN maçı. PC'ler aynı Radmin VPN ağı üzerinden oda sahibinin IP'siyle bağlanabilir.
 - Aynı cihazda bir klavye/mouse veya dokunmatik oyuncusu ve ayrı gamepad'ler. Örneğin bir klavye + iki gamepad = üç kişi.
 - Xbox / PlayStation tuş gösterimi, ölü bölge, titreşim ayarları ve test düğmesi.
-- Windows XInput kontrolcüleri için yerel titreşim köprüsü; oyun olaylarında rumble ve elle titreşim testi.
+- Windows XInput kontrolcüleri için yerel titreşim köprüsü; çarpışma, turbo, zıplama, kalkan, kristal, gol ve maç sonucu için farklı rumble efektleri ve elle titreşim testi.
 - İmzalı Android APK ve PCK gömülü, tek dosyalı Windows EXE.
 
 [İndirme sayfası ve LAN rehberi](https://ukkase8134.github.io/cep-arena/)

@@ -826,9 +826,14 @@ func _process(dt: float) -> void:
 		scores[i].text="P%d  %s  ·  %d"%[i+1,p.name,int(p.score)]
 		if pads!=null and i in pads.slots:
 			var old: Dictionary = vibration_state.get(i,{"score":p.score,"hurt":p.hurt,"boost":p.boost})
-			if p.hurt>old.hurt: _rumble_slot(i,0.25,0.85,0.18)
-			elif p.boost>old.boost: _rumble_slot(i,0.4,0.2,0.09)
-			elif selected in [0,3] and p.score>old.score: _rumble_slot(i,0.5,0.2,0.1)
+			if p.hurt>old.hurt: _rumble_slot(i,0.55,1.0,0.3)
+			elif p.boost>old.boost:
+				if selected==4: _rumble_slot(i,0.45,0.65,0.38)
+				elif selected==2: _rumble_slot(i,0.65,0.25,0.13)
+				elif selected==5: _rumble_slot(i,0.35,0.5,0.22)
+				else: _rumble_slot(i,0.5,0.35,0.15)
+			elif selected==3 and p.score>old.score: _rumble_slot(i,0.8,0.7,0.4)
+			elif selected==0 and p.score>old.score: _rumble_slot(i,0.45,0.2,0.12)
 			vibration_state[i]={"score":p.score,"hurt":p.hurt,"boost":p.boost}
 	var countdown=ui.get_node_or_null("Countdown")
 	if countdown!=null:
@@ -877,6 +882,10 @@ func show_results(value: Dictionary, totals: Array, index: int, total: int) -> v
 	_play_sound("finish")
 	stats.matches+=1
 	var order=sim.rankings()
+	if pads!=null:
+		for slot in pads.slots:
+			var won=abs(sim.state.players[slot].score-sim.state.players[order[0]].score)<0.01
+			_rumble_slot(slot,0.75 if won else 0.3,0.85 if won else 0.4,0.65 if won else 0.28)
 	for winner in order:
 		if abs(sim.state.players[winner].score-sim.state.players[order[0]].score)<0.01 and roster[winner].peer==(multiplayer.get_unique_id() if connected else 1): stats.wins+=1
 	_save_settings()
