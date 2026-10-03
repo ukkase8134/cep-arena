@@ -23,8 +23,6 @@ Windows `Xbox 360 Controller`, Godot `XInput Controller` olarak algıladı. XInp
 
 Üretilen Windows EXE ayrıca çalıştırıldı: gömülü köprü açıldı, kontrolcü algılandı ve titreşim komutu gönderildi. Çalışma günlüğünde hata bulunmadı.
 
-20 saniyelik hafif bağlantı sinyali ayarlardan kapatılabilir. Titreşim, donanımın uyku davranışını her cihazda önlediğinin kanıtı değildir.
-
 ## Henüz doğrulanmayanlar
 
 - Fiziksel Android telefonda APK kurulumu, dokunmatik ve Android gamepad/rumble.

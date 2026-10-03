@@ -61,9 +61,6 @@ var deadzone=0.18
 var primary_source=0
 var controller_message=""
 var vibration_state: Dictionary = {}
-var keepalive=true
-var keepalive_clock=0.0
-var last_rumble: Dictionary = {}
 var haptics: Node
 
 func _ready() -> void:
@@ -408,11 +405,6 @@ func _controller_settings() -> void:
 	vibration.button_pressed=rumble_enabled
 	vibration.toggled.connect(func(enabled):rumble_enabled=enabled;_save_settings())
 	content.add_child(vibration)
-	var alive=CheckButton.new()
-	alive.text="20 saniyede bir hafif bağlantı titreşimi"
-	alive.button_pressed=keepalive
-	alive.toggled.connect(func(value):keepalive=value;_save_settings())
-	content.add_child(alive)
 	var strength_label=_label("Titreşim gücü: %d%%"%int(rumble_strength*100),14,MUTED)
 	content.add_child(strength_label)
 	var strength=HSlider.new()
@@ -449,7 +441,6 @@ func _rumble_slot(slot: int, weak: float, strong: float, duration: float) -> voi
 	var index=pads.slots.find(slot)
 	if index>=0 and index<pads.devices.size() and pads.devices[index]>=0:
 		haptics.pulse(pads.devices[index],weak*rumble_strength,strong*rumble_strength,duration)
-		last_rumble[pads.devices[index]]=Time.get_ticks_msec()
 
 func _action_label() -> String:
 	if pad_layout==2: return "× / R1"
@@ -769,13 +760,6 @@ func _show_game() -> void:
 
 func _physics_process(dt: float) -> void:
 	auto_clock+=dt
-	keepalive_clock+=dt
-	if keepalive_clock>=20:
-		keepalive_clock=0
-		if keepalive and rumble_enabled and not args.has("capture") and not args.has("smoke-host") and not args.has("smoke-client"):
-			for device in Input.get_connected_joypads():
-				if Time.get_ticks_msec()-last_rumble.get(device,0)>500:
-					haptics.pulse(device,0.07*rumble_strength,0.04*rumble_strength,0.12)
 	if connecting:
 		connect_clock+=dt
 		if connect_clock>10: _connection_failed()
@@ -977,7 +961,6 @@ func _load_settings() -> void:
 	sound=bool(config.get_value("audio","enabled",true))
 	difficulty=clampi(int(config.get_value("bots","difficulty",1)),0,2)
 	rumble_enabled=bool(config.get_value("gamepad","rumble",true))
-	keepalive=bool(config.get_value("gamepad","keepalive",true))
 	rumble_strength=clampf(float(config.get_value("gamepad","strength",0.65)),0,1)
 	pad_layout=clampi(int(config.get_value("gamepad","layout",0)),0,2)
 	deadzone=clampf(float(config.get_value("gamepad","deadzone",0.18)),0.05,0.4)
@@ -992,7 +975,6 @@ func _save_settings() -> void:
 	config.set_value("audio","enabled",sound)
 	config.set_value("bots","difficulty",difficulty)
 	config.set_value("gamepad","rumble",rumble_enabled)
-	config.set_value("gamepad","keepalive",keepalive)
 	config.set_value("gamepad","strength",rumble_strength)
 	config.set_value("gamepad","layout",pad_layout)
 	config.set_value("gamepad","deadzone",deadzone)
