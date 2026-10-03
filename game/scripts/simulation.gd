@@ -1,16 +1,10 @@
 extends RefCounted
+const Arcade=preload("res://scripts/arcade_rules.gd")
+var arcade=Arcade.new()
 const Bomber=preload("res://scripts/bomber_rules.gd")
 ## The host runs all game rules. Clients send bounded input, never positions or scores.
 
-const GAMES = [
-	{"name":"Kristal Kapmaca", "tag":"3D · TOPLA", "desc":"Parlayan kristalleri kap, arenanın yıldızı ol.", "rule":"Kristalleri topla. Hamle ile hızlan. En çok kristali toplayan kazanır.", "color":"80f5cd", "duration":45.0},
-	{"name":"Renk Adası", "tag":"3D · HAYATTA KAL", "desc":"Doğru rengi bul. Zemin seni beklemeyecek.", "rule":"Üstteki renge koş! Diğer karolar kaybolur. Her düşüş 3 puan götürür.", "color":"b6a1ff", "duration":48.0},
-	{"name":"Dönen Çember", "tag":"3D · ZIPLA", "desc":"Dönen ışınlar, dört rakip, tek şampiyon.", "rule":"Dönen ışından hamle ile zıpla. Her çarpışma 3 puan götürür.", "color":"ffcf70", "duration":45.0},
-	{"name":"Neon Hokey", "tag":"2D · GOL AT", "desc":"Kendi kaleni koru, diski rakibine gönder.", "rule":"Rakip kaleye gol at. Hamle ile diske sert vur. Kendi kalenden uzak tut!", "color":"78caff", "duration":60.0},
-	{"name":"Roket Ralli", "tag":"2D · YARIŞ", "desc":"Engelleri geç, turboya bas, öne fırla.", "rule":"Sağa ve sola yönelerek engellerden kaç. Hamle turbodur. En uzağa giden kazanır.", "color":"ff846b", "duration":45.0},
-	{"name":"Meteor Yağmuru", "tag":"2D · KAÇIN", "desc":"Uzay dar, meteorlar fazla. Refleksine güven.", "rule":"Meteorların yolundan kaç. Hamle kısa bir kalkan açar. Darbeler puan götürür.", "color":"f69bd0", "duration":45.0},
-	{"name":"Bomba Arenası", "tag":"2D · PATLAT", "desc":"Bırak, kaç, patlat. Sandıkları aç, rakibini yakala.", "rule":"Hamle ile bomba bırak! Patlama duvardan geçmez. Sandık +1, rakibe isabet +4 puan. Darbe -2 puan.", "color":"ffcf70", "duration":60.0}
-]
+const GAMES = preload("res://scripts/catalog.gd").GAMES
 const COLORS = [Color("80f5cd"),Color("ff846b"),Color("b6a1ff"),Color("78caff")]
 const TILES = [Color("80f5cd"),Color("ff846b"),Color("b6a1ff"),Color("ffcf70")]
 var state: Dictionary = {}
@@ -22,7 +16,7 @@ func begin(game_id: int, roster: Array, seed_value: int, duration := -1.0) -> vo
 	state = {"game":game_id,"time":0.0,"duration":GAMES[game_id].duration if duration < 0 else duration,"phase":"play","players":[],"items":[],"hazards":[],"puck":Vector2.ZERO,"puck_v":Vector2(0.42,0.65),"last_hit":-1,"target":rng.randi_range(0,3),"cycle":-1,"seed":seed_value,"event":0}
 	for i in range(roster.size()):
 		var angle = TAU * float(i)/roster.size() - PI/2
-		state.players.append({"name":roster[i].name,"peer":roster[i].peer,"bot":roster[i].bot,"p":Vector2(cos(angle),sin(angle))*0.57,"v":Vector2.ZERO,"score":0.0,"cool":0.0,"boost":0.0,"hurt":0.0,"progress":0.0,"action_held":false})
+		state.players.append({"name":roster[i].name,"peer":roster[i].peer,"bot":roster[i].bot,"p":Vector2(cos(angle),sin(angle))*0.57,"v":Vector2.ZERO,"score":0.0,"cool":0.0,"boost":0.0,"hurt":0.0,"progress":0.0,"action_held":false,"jump_buffer":0.0})
 	if game_id == 0:
 		for i in range(10): state.items.append(_point(0.78))
 	elif game_id == 1:
@@ -42,10 +36,15 @@ func begin(game_id: int, roster: Array, seed_value: int, duration := -1.0) -> vo
 			state.players[i].ai_target=Bomber.SPAWNS[i]
 			state.players[i].ai_action=false
 
+	elif game_id>=7: arcade.begin(state,rng)
+
 func _point(radius: float) -> Vector2:
 	return Vector2(rng.randf_range(-radius,radius),rng.randf_range(-radius,radius))
 
 func bot_input(i: int) -> Dictionary:
+	if state.game>=7:
+		arcade.s=state;arcade.rng=rng;arcade.level=difficulty
+		return arcade.bot_input(i)
 	if state.game==6: return _bomber_bot(i)
 	var p: Dictionary = state.players[i]
 	var target: Vector2 = Vector2.ZERO
@@ -71,7 +70,7 @@ func bot_input(i: int) -> Dictionary:
 			action = fmod(state.time,6.0)>2.4 and nearest > 0.25
 		2:
 			target = Vector2(cos(i*TAU/4),sin(i*TAU/4))*0.66
-			var angle: float = state.time*(1.35+state.time*0.018)
+			var angle: float = beam_angle(state.time+0.12)
 			var difference: float = abs(wrapf(p.p.angle()-angle,-PI/2,PI/2))
 			action = difference < (0.28 if difficulty > 0 else 0.15)
 		3:
@@ -102,6 +101,10 @@ func step(dt: float, inputs: Dictionary) -> void:
 	if state.is_empty() or state.phase != "play": return
 	state.time += dt
 	var game_id: int = state.game
+	if game_id>=7:
+		arcade.step(state,dt,inputs,rng,difficulty)
+		if state.time>=state.duration: state.time=state.duration;state.phase="result"
+		return
 	if game_id==6:
 		_step_bomber(dt,inputs)
 		if state.time>=state.duration: state.time=state.duration;state.phase="result"
@@ -116,9 +119,13 @@ func step(dt: float, inputs: Dictionary) -> void:
 		p.boost = maxf(0,p.boost-dt)
 		p.hurt = maxf(0,p.hurt-dt)
 		var pressed: bool = input.get("action",false)
-		if pressed and not p.action_held and p.cool <= 0:
-			p.boost = 0.55
-			p.cool = 2.3
+		if game_id==2:
+			p.jump_buffer=maxf(0,p.jump_buffer-dt)
+			if pressed: p.jump_buffer=0.16
+		if (pressed and not p.action_held or game_id==2 and p.jump_buffer>0) and p.cool <= 0:
+			p.boost = 0.88 if game_id==2 else 0.55
+			p.cool = 0.94 if game_id==2 else 2.3
+			p.jump_buffer=0.0
 			state.event += 1
 		p.action_held = pressed
 		var speed := 0.62 if p.boost <= 0 else 1.15
@@ -152,9 +159,10 @@ func step(dt: float, inputs: Dictionary) -> void:
 						p.p = _safe_tile()
 			elif game_id == 2:
 				p.score += dt
-				var angle: float = state.time*(1.35+state.time*0.018)
+				var angle: float = beam_angle(state.time)
 				var ray = Vector2(cos(angle),sin(angle))
-				if abs(p.p.cross(ray))<0.075 and p.boost<=0 and p.hurt<=0:
+				var jump_height=sin((1.0-p.boost/0.88)*PI) if p.boost>0 else 0.0
+				if state.time>2.0 and p.p.length()>0.15 and abs(p.p.cross(ray))<0.06 and p.boost<0.82 and jump_height<0.18 and p.hurt<=0:
 					_hit(p,3.0)
 			elif game_id == 3:
 				if p.p.distance_to(state.puck)<0.16:
@@ -220,6 +228,9 @@ func step(dt: float, inputs: Dictionary) -> void:
 	if state.time>=state.duration:
 		state.time=state.duration
 		state.phase="result"
+
+static func beam_angle(seconds: float) -> float:
+	return maxf(0,seconds-2.0)*0.85+pow(maxf(0,seconds-2.0),2)*0.003
 
 func _goal(i: int) -> Vector2:
 	var angle = TAU*float(i)/state.players.size()-PI/2

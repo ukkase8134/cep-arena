@@ -41,7 +41,7 @@ func _ready() -> void:
 	root.add_child(light)
 	var camera=Camera3D.new()
 	camera.projection=Camera3D.PROJECTION_ORTHOGONAL
-	camera.size=13.2
+	camera.size=12.5
 	camera.position=Vector3(9,12,12)
 	root.add_child(camera)
 	camera.look_at(Vector3.ZERO)
@@ -70,7 +70,7 @@ func setup(id: int, count: int) -> void:
 		var actor=Node3D.new()
 		root.add_child(actor)
 		actors.append(actor)
-		var character=_model("character-soldier",Vector3.ZERO,0.8,actor)
+		var character=_model("character-soldier",Vector3.ZERO,1.05,actor)
 		var animation=character.find_child("AnimationPlayer",true,false)
 		animations.append(animation)
 		if animation!=null:
@@ -81,7 +81,7 @@ func setup(id: int, count: int) -> void:
 		label.font=load("res://assets/Rubik.ttf")
 		label.font_size=64
 		label.pixel_size=0.004
-		label.position=Vector3(0,1.9,0)
+		label.position=Vector3(0,2.15,0)
 		label.modulate=Sim.COLORS[i]
 		label.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 		actor.add_child(label)
@@ -137,7 +137,7 @@ func update_state(state: Dictionary, dt: float) -> void:
 	time=state.time
 	for i in range(mini(actors.size(),state.players.size())):
 		var p: Dictionary = state.players[i]
-		var jump: float = sin((1.0-p.boost/0.55)*PI)*1.0 if game_id==2 and p.boost>0 else 0.0
+		var jump: float = sin((1.0-p.boost/0.88)*PI)*1.0 if game_id==2 and p.boost>0 else 0.0
 		var target=Vector3(p.p.x*5,jump,p.p.y*5)
 		actors[i].position=actors[i].position.lerp(target,minf(1,dt*18))
 		if p.v.length()>0.02: actors[i].rotation.y=lerp_angle(actors[i].rotation.y,atan2(p.v.x,p.v.y),dt*10)
@@ -162,4 +162,4 @@ func update_state(state: Dictionary, dt: float) -> void:
 	for i in range(tiles.size()):
 		var down: bool = fmod(time,6)>=4 and int(state.items[i])!=int(state.target)
 		tiles[i].position.y=lerpf(tiles[i].position.y,-2.0 if down else 0.0,minf(1,dt*10))
-	if beam!=null: beam.rotation.y=-time*(1.35+time*0.018)
+	if beam!=null: beam.rotation.y=-Sim.beam_angle(time)

@@ -1,79 +1,80 @@
-# Cep Arena
+# Cep Arena 1.2.0
 
-Android ve Windows için Türkçe, 2–4 oyunculu bir mini oyun uygulaması. Godot 4.7.2 ile geliştirilmiştir.
+Android ve Windows için 2–4 oyunculu **32 mini oyun**. Botlarla, aynı cihazda bağımsız gamepad'lerle veya aynı LAN'da ayrı cihazlarla oynanabilir.
 
-**[Oyunu indir](https://ukkase8134.github.io/cep-arena/)** · **[Sürümler](https://github.com/ukkase8134/cep-arena/releases)**
+[İndirme sayfası](https://ukkase8134.github.io/cep-arena/) · [APK](https://github.com/ukkase8134/cep-arena/releases/latest/download/CepArena-Android.apk) · [EXE](https://github.com/ukkase8134/cep-arena/releases/latest/download/CepArena-Windows.exe) · [Doğrulama](QA.md)
 
-![Ana menü](docs/assets/menu.jpg)
+## Kontroller
+
+- Menü: sol çubuk / D-pad, A / × ile seçim, B / ○ ile geri. Kategori, arama, favoriler ve açılır ayarlar kontrolcüyle kullanılabilir.
+- Oyun: WASD / oklar veya sol çubuk. Ana hamle A / × / RB / R1 / Boşluk / sol tık. İkinci hamle X / □ / LB / L1 / E / Shift / sağ tık.
+- Android: bağımsız joystick ve hamle düğmeleri; ikinci hamlesi bulunan oyunlarda ikinci düğme. USB / Bluetooth gamepad desteği.
+- Aynı PC: bir klavye/mouse oyuncusu ve her gamepad ayrı oyuncu. İki gamepad + bir klavye/mouse ile üç kişi oynayabilir.
+- Oyundaki Ana menü, B / ○, Start veya Esc menüye döner. Ana menüdeki Çık uygulamayı kapatır.
+- Titreşim oyun olaylarına bağlıdır. Bekleme sırasında periyodik sinyal gönderilmez.
+
+Dönen Çember 90 saniyedir. Havada kalma 0,88 sn, yeniden zıplama aralığı 0,94 sn; basılı tutmak yeniden zıplatır. Platform oyunlarında 160 ms giriş tamponu, 120 ms kenar toleransı, kısa/uzun basış ve gerçek düşey hız kullanılır.
 
 ## Oyunlar
 
-| Oyun | Görünüm | Amaç |
-|---|---|---|
-| Kristal Kapmaca | 3D | Kristal topla, hamle ile hızlan |
-| Renk Adası | 3D | Güvenli renkli karoya yetiş |
-| Dönen Çember | 3D | Dönen ışından zamanında zıpla |
-| Neon Hokey | 2D | Kendi kaleni koru, rakibe gol at |
-| Roket Ralli | 2D | Engellerden kaç, turbo ile yarış |
-| Meteor Yağmuru | 2D | Meteorlardan kaç, kalkan kullan |
-| Bomba Arenası | 2D | Bomba bırak, sandıkları kır, patlamadan kaç |
+| No | Oyun | Kategori | Ana hamle | İkinci hamle | Tur |
+|---|---|---|---|---|---|
+| 1 | Kristal Kapmaca | Parti | Hızlan | — | 60 sn |
+| 2 | Renk Adası | Parti | Atıl | — | 75 sn |
+| 3 | Dönen Çember | Zıplama | Zıpla | — | 90 sn |
+| 4 | Neon Hokey | Spor | Vur | — | 75 sn |
+| 5 | Roket Ralli | Parti | Turbo | — | 75 sn |
+| 6 | Meteor Yağmuru | Tank/Uzay | Kalkan | — | 75 sn |
+| 7 | Bomba Arenası | Klasik | Bomba | — | 90 sn |
+| 8 | Ring Kavgası | Dövüş | Yumruk | Gard | 90 sn |
+| 9 | Tank Düellosu | Tank/Uzay | Ateş | Kalkan | 100 sn |
+| 10 | Kılıç Meydanı | Dövüş | Savur | Par savuştur | 90 sn |
+| 11 | Sumo Çemberi | Dövüş | İt | Sağlam dur | 90 sn |
+| 12 | Tank Topçusu | Tank/Uzay | Şarj / Ateş | Yön değiştir | 100 sn |
+| 13 | Bayrak Baskını | Parti | Hızlan | Bayrağı bırak | 90 sn |
+| 14 | Taç Kapışması | Parti | İt | Kalkan | 90 sn |
+| 15 | Uzay Muharebesi | Tank/Uzay | Lazer | Atıl | 90 sn |
+| 16 | Zıpla ve Yüksel | Zıplama | Zıpla | — | 100 sn |
+| 17 | Engel Koşusu | Zıplama | Zıpla | Kay | 90 sn |
+| 18 | Lav Yükseliyor | Zıplama | Zıpla | — | 100 sn |
+| 19 | İp Atlama | Zıplama | Zıpla | — | 90 sn |
+| 20 | Kurbağa Geçidi | Zıplama | Hızlı sıçra | — | 90 sn |
+| 21 | Pinpon | Spor | Falso | — | 90 sn |
+| 22 | Mini Futbol | Spor | Şut | Koş | 100 sn |
+| 23 | Basket Atışı | Spor | Güç / Atış | — | 90 sn |
+| 24 | Bowling | Spor | Güç / Atış | — | 100 sn |
+| 25 | Mini Golf | Spor | Güç / Vuruş | — | 110 sn |
+| 26 | Yılan Yarışı | Klasik | Hızlan | — | 90 sn |
+| 27 | Blok Kırıcı | Klasik | Topu bırak | — | 100 sn |
+| 28 | Asteroit Avcısı | Tank/Uzay | Ateş | Kalkan | 90 sn |
+| 29 | Hazine Koşusu | Parti | Hızlan | Çal | 90 sn |
+| 30 | Hafıza Karoları | Klasik | Onay | — | 100 sn |
+| 31 | Tepki Yarışı | Klasik | Bas | — | 90 sn |
+| 32 | Bölge Boyama | Parti | Boya dalgası | Kalkan | 100 sn |
 
-Tek maç veya üç farklı oyundan oluşan turnuva. Eksik oyuncuları botlar tamamlar. Botlar rahat, normal ve zorlu seviyelerde oynar. Skorlar eşitse ortak birincilik geçerlidir; turnuva puanları da eşit sıradaki oyuncular için eşit dağıtılır.
+Üç turluk turnuva üç farklı oyun seçer. Botların üç zorluk seviyesi vardır. Oyunlar farklı kurallar kullanır: kombo/gard, mermi sektirme, rüzgâr/yerçekimi, platform iniş/çıkışı, top fiziği, hücre/kuyruk çarpışması ve yön dizileri.
 
-## Nasıl oynanır?
+## LAN ve Radmin
 
-**Botlarla:** Oyunu ve 2 / 3 / 4 kişilik oyuncu sayısını seç, Botlarla oyna düğmesine bas.
+Bir oyuncu LAN odası kurar, diğerleri odada gösterilen yerel veya Radmin IP adresine katılır. UDP 28742, aynı uygulama sürümü ve ağ erişimi gerekir. Android aynı Wi-Fi/LAN üzerinden katılır; Radmin PC içindir. GitHub kodu, sürümleri ve indirme sayfasını barındırır. Maç trafiği oda sahibine gider.
 
-**LAN — her kişi kendi cihazında:** Aynı Wi-Fi/LAN'a bağlan. PC'ler aynı Radmin VPN ağında da oynayabilir. Bir cihaz LAN odası kur düğmesine basar. Diğerleri Odaya katıl ekranına oda sahibinin Wi-Fi/Radmin IP'sini yazar. Varsayılan port UDP **28742**. Windows'ta oyuna özel ağ güvenlik duvarı izni ver. Telefonlar Wi-Fi/LAN ile katılır; Radmin Android uygulaması gerektirmez. Android ve Windows aynı protokolü kullanır.
+Oda sahibi 60 Hz oyun kurallarını yürütür; istemciler sınırlandırılmış hareket/hamle gönderir, puan veya pozisyon gönderemez. Sıkıştırılmış durumlar 20 Hz paylaşılır. Cihaz ayrılması ve eski girdilerin sıfırlanması ele alınır.
 
-**Aynı PC — ayrı kontrolcüler:** Gamepad ile birlikte oyna ekranı her gamepad'i bağımsız seçer. Tek klavye/mouse + iki ayrı gamepad = üç oyuncu. Klavye/mouse en fazla bir oyuncuya atanır. Aynı klavyede dört tuş grubu yoktur.
+## Geliştirme ve paketleme
 
-**Android gamepad:** Sistemden USB/Bluetooth gamepad'i bağla. Aynı cihaz modunda dokunmatik tek oyuncu, bağlı gamepad'ler diğer oyuncular olabilir.
+Godot 4.7.2 stable. Android minimum API 24; ARMv7, ARM64, x86_64. Windows 64 bit, OpenGL 3.3.
 
-| Giriş | Hareket | Hamle |
-|---|---|---|
-| Klavye / mouse | WASD veya oklar | Boşluk, Enter veya sağ tık |
-| Xbox / Xbox 360 | Sol çubuk / yön tuşları | A veya RB |
-| PlayStation / PS4 | Sol çubuk / yön tuşları | × veya R1 |
-| Dokunmatik | Sol joystick | Şimşek |
+```powershell
+python scripts/fetch_tools.py
+python scripts/fetch_licensed_assets.py
+python scripts/fetch_expansion_assets.py
+python scripts/create_expansion_assets.py
+python scripts/verify.py --captures
+powershell -File scripts/build.ps1
+python scripts/prepare_site.py
+python scripts/prepare_catalog_site.py
+```
 
-Ayarlar → Gamepad ve titreşim: giriş kaynağı, otomatik / Xbox / PlayStation gösterimi, ölü bölge, titreşim gücü ve test düğmesi. İki motorlu rumble, çarpışmada güçlü; turbo, zıplama ve kalkanda farklı kısa darbeler; kristal, gol ve maç sonucunda ayrı efektler verir. Direksiyon tipi FFB yoktur. Titreşim ve model tanıma, işletim sistemi ve kontrolcü sürücüsüne bağlıdır. Xbox 360 için uygun USB alıcısı / OTG gerekebilir.
+`artifacts/` EXE, APK ve SHA256SUMS.txt içerir. Android imza anahtarı `.secrets/` altında korunur ve Git'e eklenmez. Windows XInput motor köprüsü EXE'ye gömülür. [Kaynak ve lisanslar](THIRD-PARTY.md).
 
-**Menüde gamepad:** Sol çubuk veya yön tuşlarıyla gezin; A / × ile seç, B / ○ ile geri dön. Ayar pencereleri kendi odağını korur; kapanınca önceki düğmeye dönülür. Kaydırıcılarda sağ/sol, açılır seçeneklerde yukarı/aşağı kullanılır.
-
-**Çıkış:** Oyun içindeki Ana menü düğmesi, B / ○, Start veya Esc ana menüye döner. Ana menüdeki Çık düğmesi uygulamayı kapatır. Android sistem geri tuşu önce pencereyi kapatır veya maçtan menüye döner; ana menüde uygulamadan çıkar.
-
-## Görseller ve açık lisanslı oyun
-
-1.1.0'da 3D arenalara Kenney'nin animasyonlu karakterleri, sütunları, ağaçları ve kupası eklendi. Uzay oyunları gemi / meteor / kalkan görselleri kullanır. Roket Ralli'nin şeritleri dikeydir; sağ/sol girdisi ekranda aynı yönde hareket eder. Kristal toplama halkaları, hokey diski izi, puan ve darbe efektleri vardır.
-
-Bomba Arenası, Godot'un MIT lisanslı Multiplayer Bomber örneği ve karakter/patlama görselleriyle uyarlanmıştır. Cep Arena'nın bot, bağımsız kontrolcü, LAN ve turnuva sistemini kullanır. Kenney paketleri CC0'dır. Kaynaklar, sürüm kayıtları ve lisans metinleri [THIRD-PARTY.md](THIRD-PARTY.md) dosyasında ve oyun içindeki Kaynaklar ve lisanslar ekranındadır.
-
-## Derleme
-
-1. Python 3 ile `python scripts/fetch_tools.py`. Resmi Godot editörünü ve sadece Windows / Android şablonlarını indirir. ZIP CRC doğrulaması yapılır.
-2. OpenJDK ve Android SDK kurulu olmalı. Godot editör ayarlarında Java SDK ve Android SDK yollarını belirt. APK, hazır Godot şablonundan Gradle gerektirmeden çıkarılır.
-3. `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1`.
-4. Çıktılar: `artifacts/CepArena-Windows.exe`, `artifacts/CepArena-Android.apk`, `artifacts/SHA256SUMS.txt`.
-
-İlk derleme `.secrets/cep-arena.keystore` ve `.secrets/signing.json` oluşturur. Bunlar Git'e eklenmez. Gelecek APK güncellemeleri için bu iki dosyayı güvenli şekilde yedekle; aynı imza korunmalıdır. Release anahtarı yalnızca yerel ortamda tutulur, çevrimiçi depoya veya APK içine yazılmaz. Windows EXE, PCK gömülü tek dosyadır; yayıncı sertifikası ile imzalanmamıştır.
-
-## Doğrulama
-
-`python scripts/verify.py --captures` oyun kurallarını, 2/3/4 kişilik maçları, bot seviyelerini, kontrol izolasyonunu, menü gezinmesini ve dört ayrı ENet sürecini sınar. Gerçek GPU ile sekiz ekran görüntüsü üretir. Ayrıntılar [QA.md](QA.md).
-
-Windows'ta bağlı bir Xbox 360 tabanlı kontrolcünün tanınması, çubuk/tuş girdileri ve XInput titreşimi doğrulandı. Fiziksel telefon, PS4, aynı anda iki ayrı gamepad ve gerçek Radmin ağı testi henüz yapılmadı. Dört yerel süreç testi dört ayrı PC testi değildir.
-
-## Yapı
-
-- `game/scripts/simulation.gd`: sunucu tarafından hesaplanan oyun kuralları ve botlar.
-- `game/scripts/main.gd`: Türkçe arayüz, lobi, LAN, maç akışı, turnuva ve kayıt.
-- `game/scripts/controls.gd`: tek klavye/mouse, ayrı cihaz kimlikli gamepad'ler, dokunmatik.
-- `game/scripts/arena_3d.gd` / `arena_2d.gd`: oyun görselleri.
-- `docs/`: GitHub Pages indirme sitesi. GitHub Releases dosyalarına bağlanır.
-
-GitHub Pages statik sayfa barındırır; canlı oyun sunucusu olarak kullanılmaz. LAN'da oda sahibi, oyun sunucusudur. Tüm girdiler sunucuda sınırlandırılır. İstemciler skor/konum yazamaz. Kopan uzak oyuncu botla değiştirilir, oda sahibi ayrılırsa maç kapanır.
-
-Uygulama reklam veya analitik servisi içermez. Oyuncu adı ve ayarlar cihazda tutulur. Oda sahibine oyuncu adı ve oyun girdileri gönderilir. Oyun çalışırken GitHub hesabı veya GitHub erişim anahtarı gerekmez.
-
-Oyun kaynakları MIT lisanslıdır. Rubik fontu [SIL OFL](game/assets/FONT-LICENSE.txt) lisanslıdır. Godot motoru MIT lisanslıdır; dağıtımda [Godot telif bilgileri](https://godotengine.org/license/) geçerlidir.
+Fiziksel Android, PS4, aynı anda iki gamepad ve gerçek dört PC/Radmin doğrulaması henüz yapılmadı. Otomatik sonuçlar fiziksel cihaz deneyiminin yerine geçmez.

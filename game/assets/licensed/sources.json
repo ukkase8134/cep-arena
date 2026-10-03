@@ -33,5 +33,40 @@
       "explosion.png": "9e33b8f18c5443f725e279365f45ed2d11d8482c60677dd2119caf86a81c9d95",
       "LICENSE.md": "0339177149b474f7ff676d32218ecb3a8f2538955610023c3769763720d09e4c"
     }
+  },
+  {
+    "publisher": "Kenney",
+    "page": "https://kenney.nl/assets/top-down-tanks-remastered",
+    "download": "https://kenney.nl/media/pages/assets/top-down-tanks-remastered/f24c234ed5-1774771973/kenney_top-down-tanks-remastered.zip",
+    "sha256": "547945af89cbd116b6e7f521b5cd838e255ff3934d09a1201e7e08848c25246b",
+    "license": "CC0 1.0"
+  },
+  {
+    "publisher": "Kenney",
+    "page": "https://kenney.nl/assets/sports-pack",
+    "download": "https://kenney.nl/media/pages/assets/sports-pack/ede5629412-1677693282/kenney_sports-pack.zip",
+    "sha256": "d8629a1afd6b6dc48b5cb2074810166744e06ed097ea392fe7669bdcef376de5",
+    "license": "CC0 1.0"
+  },
+  {
+    "publisher": "Kenney",
+    "page": "https://kenney.nl/assets/tiny-dungeon",
+    "download": "https://kenney.nl/media/pages/assets/tiny-dungeon/f8422efb44-1674742415/kenney_tiny-dungeon.zip",
+    "sha256": "c109438ab06f65fd80f9b2686a4cf9c7c11dc64444b47333ec71d602f8bb5fc7",
+    "license": "CC0 1.0"
+  },
+  {
+    "publisher": "Kenney",
+    "page": "https://kenney.nl/assets/impact-sounds",
+    "download": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+    "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+    "license": "CC0 1.0"
+  },
+  {
+    "publisher": "Kenney",
+    "page": "https://kenney.nl/assets/digital-audio",
+    "download": "https://kenney.nl/media/pages/assets/digital-audio/216eac4753-1677590265/kenney_digital-audio.zip",
+    "sha256": "24e6ce28b76a6d8c89cff4d331e0965ff5c3de8a73c612028e9d363cc64e4f06",
+    "license": "CC0 1.0"
   }
 ]

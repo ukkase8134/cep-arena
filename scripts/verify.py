@@ -6,10 +6,16 @@ QA=ROOT/'qa'; QA.mkdir(exist_ok=True)
 BASE=[str(GODOT),'--headless','--path',str(ROOT/'game')]
 
 def simulation():
-    result=subprocess.run(BASE+['--script','tests/simulation_test.gd'],capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=60)
+    result=subprocess.run(BASE+['--script','tests/simulation_test.gd'],capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=120)
     (QA/'simulation.log').write_text(result.stdout+result.stderr,encoding='utf-8')
     print(result.stdout+result.stderr)
     if result.returncode or 'FAIL:' in result.stderr or 'SCRIPT ERROR' in result.stderr: raise RuntimeError('Simulation checks failed')
+
+def arcade():
+    result=subprocess.run(BASE+['--script','tests/arcade_test.gd'],capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=150)
+    (QA/'arcade.log').write_text(result.stdout+result.stderr,encoding='utf-8')
+    print(result.stdout+result.stderr)
+    if result.returncode or 'FAIL:' in result.stderr or 'ERROR:' in result.stderr or 'ARCADE_CHECKS ' not in result.stdout: raise RuntimeError('Arcade checks failed')
 
 def ui():
     result=subprocess.run(BASE+['--script','tests/ui_test.gd'],capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=25)
@@ -25,12 +31,12 @@ def network():
         time.sleep(1)
         for i in range(3):
             log=open(QA/f'client{i}.log','w',encoding='utf-8'); logs.append(log)
-            children.append(subprocess.Popen(BASE+['--','--smoke-client','--port=29872','--exit-after=20'],stdout=log,stderr=log))
-        for child in children: child.wait(timeout=40)
+            children.append(subprocess.Popen(BASE+['--','--smoke-client','--port=29872','--exit-after=90'],stdout=log,stderr=log))
+        for child in children: child.wait(timeout=110)
         for log in logs: log.flush()
         output=(QA/'host.log').read_text(encoding='utf-8')
         print(output)
-        if 'NETWORK_SMOKE_PASS 7 GAMES' not in output: raise RuntimeError('Host failed')
+        if 'NETWORK_SMOKE_PASS 32 GAMES' not in output: raise RuntimeError('Host failed')
         if output.count('REGISTERED ')<3: raise RuntimeError('Not all four devices connected')
         for i,child in enumerate(children):
             data=(QA/('host.log' if i==0 else f'client{i-1}.log')).read_text(encoding='utf-8')
@@ -42,7 +48,7 @@ def network():
         for log in logs: log.close()
 
 def captures():
-    for game in [-1,0,1,2,3,4,5,6]:
+    for game in [-1]+list(range(32)):
         dest=QA/('menu.png' if game<0 else f'game{game}.png')
         cmd=[str(GODOT),'--path',str(ROOT/'game'),'--',f'--capture={dest.as_posix()}']
         if game>=0: cmd.append(f'--demo={game}')
@@ -53,6 +59,7 @@ def captures():
 
 if __name__=='__main__':
     simulation()
+    arcade()
     ui()
     network()
     if '--captures' in sys.argv: captures()

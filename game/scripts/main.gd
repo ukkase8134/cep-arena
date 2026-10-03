@@ -1,11 +1,12 @@
 extends Node
 const Sim=preload("res://scripts/simulation.gd")
 const View3D=preload("res://scripts/arena_3d.gd")
+const ArcadeView=preload("res://scripts/arcade_view.gd")
 const View2D=preload("res://scripts/arena_2d.gd")
 const Controls=preload("res://scripts/controls.gd")
 const Haptics=preload("res://scripts/haptics.gd")
 const Navigation=preload("res://scripts/ui_navigation.gd")
-const VERSION="1.1.0"
+const VERSION="1.2.0"
 const DEFAULT_PORT=28742
 const INK=Color("0b1428")
 const PANEL=Color("14213a")
@@ -18,6 +19,10 @@ var sim=Sim.new()
 var screen="menu"
 var mode="solo"
 var selected=0
+var category="Tümü"
+var search_text=""
+var favorites: Array=[]
+var favorites_only=false
 var player_count=4
 var difficulty=1
 var tournament=false
@@ -45,8 +50,12 @@ var packet_clock=0.0
 var client_input_clock=0.0
 var connect_clock=0.0
 var last_event=0
+var last_sfx_time=-1.0
 var sound=true
 var sfx: AudioStreamPlayer
+var sound_pool: Array=[]
+var sound_cursor=0
+var quitting=false
 var stats={"matches":0,"wins":0,"best":0}
 var args: Dictionary = {}
 var demo=false
@@ -99,8 +108,9 @@ func _ready() -> void:
 	theme.set_color("font_placeholder_color","LineEdit",MUTED)
 	theme.set_color("font_color","CheckButton",WHITE)
 	ui.theme=theme
-	sfx=AudioStreamPlayer.new()
-	add_child(sfx)
+	for i in range(6):
+		var channel=AudioStreamPlayer.new();channel.volume_db=-10;add_child(channel);sound_pool.append(channel)
+	sfx=sound_pool[0]
 	haptics=Haptics.new()
 	add_child(haptics)
 	navigation=Navigation.new()
@@ -167,6 +177,15 @@ func _label(text_value: String, size_value=18, color=WHITE) -> Label:
 func _button(text_value: String, callback: Callable, accent=false) -> Button:
 	var button=Button.new()
 	button.text=text_value
+	var icon_name=""
+	if text_value=="Ayarlar": icon_name="settings"
+	elif text_value=="Çık": icon_name="exit"
+	elif text_value.contains("Gamepad"): icon_name="pad"
+	elif text_value.contains("LAN") or text_value.contains("katıl"): icon_name="lan"
+	if not icon_name.is_empty():
+		button.icon=load("res://assets/ui-%s.svg"%icon_name)
+		button.expand_icon=true
+		button.add_theme_constant_override("icon_max_width",20)
 	button.set_meta("nav_key",text_value)
 	button.custom_minimum_size=Vector2(0,44)
 	button.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND
@@ -231,21 +250,36 @@ func _show_menu() -> void:
 	screen="menu"
 	_clear()
 	var box=_page()
-	_header(box,"Birlikte oyna. Daha çok gül.")
+	_header(box,"Arcade koleksiyonu  /  32 oyun")
 	var body=HBoxContainer.new()
-	body.add_theme_constant_override("separation",28)
+	body.add_theme_constant_override("separation",24)
 	body.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	box.add_child(body)
 	var left=VBoxContainer.new()
-	left.custom_minimum_size.x=330
+	left.custom_minimum_size.x=314
 	left.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	left.size_flags_stretch_ratio=0.43
+	left.size_flags_stretch_ratio=0.4
 	left.add_theme_constant_override("separation",10)
 	body.add_child(left)
-	left.add_child(_label("KÜÇÜK OYUNLAR. BÜYÜK REKABET.",12,MINT))
-	left.add_child(_label("Arkadaşlarını\narenaya çağır.",37))
-	var text=_label("Yedi mini oyun. Dört renk.\nHer turda yeni bir şampiyon.",16,MUTED)
-	left.add_child(text)
+	left.add_child(_label("BİR TUR DAHA?",12,MINT))
+	var selected_box=PanelContainer.new()
+	selected_box.add_theme_stylebox_override("panel",_style(Color("21304a"),20,Color(Sim.GAMES[selected].color).darkened(0.4)))
+	left.add_child(selected_box)
+	var selected_v=VBoxContainer.new()
+	selected_v.add_theme_constant_override("separation",9)
+	selected_box.add_child(selected_v)
+	var preview=TextureRect.new()
+	preview.texture=load("res://assets/game%d.svg"%selected)
+	preview.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	preview.custom_minimum_size=Vector2(0,103)
+	selected_v.add_child(preview)
+	selected_v.add_child(_label(Sim.GAMES[selected].category.to_upper()+"  ·  %d sn"%int(Sim.GAMES[selected].duration),11,Color(Sim.GAMES[selected].color)))
+	selected_v.add_child(_label(Sim.GAMES[selected].name,25))
+	var desc=_label(Sim.GAMES[selected].desc,14,MUTED)
+	desc.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	selected_v.add_child(desc)
+	left.add_child(_button("Nasıl oynanır?",func():var v=_modal(Sim.GAMES[selected].name);var rule=_label(Sim.GAMES[selected].rule,18);rule.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;v.add_child(rule)))
 	var choice=HBoxContainer.new()
 	choice.add_theme_constant_override("separation",8)
 	left.add_child(choice)
@@ -253,15 +287,8 @@ func _show_menu() -> void:
 		var button=_button("%d kişi"%n,func():player_count=n;_show_menu(),player_count==n)
 		button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		choice.add_child(button)
-	var selected_box=PanelContainer.new()
-	selected_box.add_theme_stylebox_override("panel",_style(PANEL,16))
-	left.add_child(selected_box)
-	var selected_v=VBoxContainer.new()
-	selected_box.add_child(selected_v)
-	selected_v.add_child(_label("SIRADAKİ OYUN",11,MUTED))
-	selected_v.add_child(_label(Sim.GAMES[selected].name,23,Color(Sim.GAMES[selected].color)))
 	var quick=_button("Botlarla oyna  →",func():mode="solo";_start_offline(),true)
-	quick.custom_minimum_size.y=52
+	quick.custom_minimum_size.y=50
 	left.add_child(quick)
 	left.add_child(_button("Gamepad ile birlikte oyna",_local_setup))
 	var small=CheckButton.new()
@@ -271,20 +298,50 @@ func _show_menu() -> void:
 	small.toggled.connect(func(value):tournament=value)
 	left.add_child(small)
 	_spacer(left,true)
+	var library=VBoxContainer.new()
+	library.custom_minimum_size.x=680
+	library.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	body.add_child(library)
+	var tools=HBoxContainer.new()
+	tools.add_theme_constant_override("separation",10)
+	library.add_child(tools)
+	var categories=OptionButton.new()
+	categories.custom_minimum_size=Vector2(155,42)
+	for title in ["Tümü","Dövüş","Tank/Uzay","Zıplama","Spor","Klasik","Parti"]:
+		categories.add_item(title)
+		if title==category: categories.select(categories.item_count-1)
+	categories.item_selected.connect(func(index):category=categories.get_item_text(index);_show_menu())
+	tools.add_child(categories)
+	var search=LineEdit.new()
+	search.placeholder_text="Oyun ara…"
+	search.text=search_text
+	search.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	search.text_submitted.connect(func(value):search_text=value;_show_menu())
+	tools.add_child(search)
+	tools.add_child(_button("Ara",func():search_text=search.text;_show_menu()))
+	var favorite_filter=_button("★",func():favorites_only=not favorites_only;_show_menu(),favorites_only)
+	favorite_filter.tooltip_text="Favori oyunlar"
+	tools.add_child(favorite_filter)
 	var game_scroll=ScrollContainer.new()
 	game_scroll.follow_focus=true
 	game_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
-	game_scroll.custom_minimum_size.x=660
-	game_scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	body.add_child(game_scroll)
+	game_scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	library.add_child(game_scroll)
 	var grid=GridContainer.new()
 	grid.columns=3
 	grid.add_theme_constant_override("h_separation",12)
 	grid.add_theme_constant_override("v_separation",12)
 	grid.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	grid.size_flags_stretch_ratio=1.0
 	game_scroll.add_child(grid)
-	for i in range(Sim.GAMES.size()): grid.add_child(_game_card(i))
+	var count=0
+	for i in range(Sim.GAMES.size()):
+		var g: Dictionary=Sim.GAMES[i]
+		if category!="Tümü" and g.category!=category: continue
+		if favorites_only and i not in favorites: continue
+		if not search_text.is_empty() and not (g.name+g.category).to_lower().contains(search_text.to_lower()): continue
+		grid.add_child(_game_card(i));count+=1
+	if count==0: grid.add_child(_label("Eşleşen oyun bulunamadı.",18,MUTED))
+	library.add_child(_label("%d oyun  ·  Sol çubuk / yön tuşlarıyla gez  ·  A / × ile seç"%count,12,MUTED))
 	var footer=HBoxContainer.new()
 	footer.add_theme_constant_override("separation",12)
 	box.add_child(footer)
@@ -292,7 +349,7 @@ func _show_menu() -> void:
 	footer.add_child(_button("↗  Odaya katıl",_join_dialog))
 	footer.add_child(_button("Çık",_quit_app))
 	_spacer(footer)
-	var footer_label=_label(message if not message.is_empty() else "Yön / çubuk: gezin  ·  A / ×: seç  ·  B / ○: geri",12,MUTED)
+	var footer_label=_label(message if not message.is_empty() else "4 renk. 32 oyun. Sıradaki şampiyon sensin.",12,MUTED)
 	footer_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	footer_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	footer_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
@@ -301,32 +358,41 @@ func _show_menu() -> void:
 
 func _game_card(index: int) -> Control:
 	var card=PanelContainer.new()
-	card.custom_minimum_size=Vector2(208,156)
+	card.custom_minimum_size=Vector2(215,208)
 	card.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	card.size_flags_vertical=Control.SIZE_EXPAND_FILL
-	card.add_theme_stylebox_override("panel",_style(Color("192942") if index==selected else PANEL,16,Color(Sim.GAMES[index].color) if index==selected else Color("25314b")))
+	card.add_theme_stylebox_override("panel",_style(Color("243550") if index==selected else PANEL,18,Color(Sim.GAMES[index].color) if index==selected else Color("2e3d58")))
 	var content=VBoxContainer.new()
-	content.add_theme_constant_override("separation",6)
+	content.add_theme_constant_override("separation",7)
 	card.add_child(content)
 	var art=TextureRect.new()
 	art.texture=load("res://assets/game%d.svg"%index)
 	art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	art.custom_minimum_size=Vector2(0,44)
-	art.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	art.custom_minimum_size=Vector2(0,72)
 	content.add_child(art)
-	content.add_child(_label(Sim.GAMES[index].tag,10,Color(Sim.GAMES[index].color)))
-	content.add_child(_label(Sim.GAMES[index].name,18))
-	var choose=_button("Seçildi  ✓" if index==selected else "Oyunu seç  →",func():selected=index;_show_menu())
+	content.add_child(_label(Sim.GAMES[index].category.to_upper()+"  ·  %d sn"%int(Sim.GAMES[index].duration),10,Color(Sim.GAMES[index].color)))
+	content.add_child(_label(Sim.GAMES[index].name,17))
+	var actions=HBoxContainer.new()
+	content.add_child(actions)
+	var choose=_button("Seçildi  ✓" if index==selected else "Oyunu seç",func():selected=index;_show_menu(),index==selected)
 	choose.set_meta("nav_key","game_%d"%index)
-	choose.custom_minimum_size.y=32
+	choose.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	choose.custom_minimum_size.y=34
 	choose.add_theme_font_size_override("font_size",13)
+	actions.add_child(choose)
+	var star=_button("★" if index in favorites else "☆",func():_favorite(index))
+	star.set_meta("nav_key","favorite_%d"%index)
+	star.custom_minimum_size=Vector2(34,34)
 	for style_name in ["normal","hover","pressed"]:
-		var style=_style(Color("20344c") if style_name=="hover" else PANEL,10)
-		style.content_margin_top=5;style.content_margin_bottom=5
-		choose.add_theme_stylebox_override(style_name,style)
-	content.add_child(choose)
+		var style=_style(PANEL,8);style.content_margin_left=7;style.content_margin_right=7;style.content_margin_top=4;style.content_margin_bottom=4
+		star.add_theme_stylebox_override(style_name,style)
+	actions.add_child(star)
 	return card
+
+func _favorite(index: int) -> void:
+	if index in favorites: favorites.erase(index)
+	else: favorites.append(index)
+	_save_settings();_show_menu()
 
 func _modal(title: String) -> VBoxContainer:
 	var shade=ColorRect.new()
@@ -372,10 +438,17 @@ func _back() -> void:
 			return
 	if screen!="menu": _leave()
 
-func _quit_app() -> void:
+func _quit_app(exit_code: int=0) -> void:
+	if quitting: return
+	quitting=true
 	for device in Input.get_connected_joypads(): haptics.stop(device)
 	_disconnect()
-	get_tree().quit()
+	for channel in sound_pool:
+		channel.stop()
+		channel.stream=null
+	# Let the audio mixer retire active playbacks before the engine shuts down.
+	await get_tree().create_timer(0.1).timeout
+	get_tree().quit(exit_code)
 
 func _system_back() -> void:
 	if screen=="menu" and navigation.scope()==ui: _quit_app()
@@ -404,7 +477,7 @@ func _settings() -> void:
 		content.add_child(_button("Tam ekranı değiştir",_fullscreen))
 	content.add_child(_button("Gamepad ve titreşim ayarları",_controller_settings))
 	content.add_child(_button("Kaynaklar ve lisanslar",_credits))
-	content.add_child(_label("Klavye: WASD / Oklar  ·  Hamle: Boşluk / Sağ tık\nGamepad: sol çubuk / yön tuşları + A / × / R1\nTelefonda: joystick + şimşek veya gamepad.",14,MUTED))
+	content.add_child(_label("Klavye: WASD / Oklar  ·  Hamle: Boşluk / Sol tık · İkinci hamle: E / Sağ tık\nGamepad: sol çubuk / yön tuşları + A / × / R1\nTelefonda: joystick + şimşek veya gamepad.",14,MUTED))
 	content.add_child(_label("%d maç  ·  %d galibiyet  ·  v%s"%[stats.matches,stats.wins,VERSION],13,MINT))
 
 func _fullscreen() -> void:
@@ -412,7 +485,7 @@ func _fullscreen() -> void:
 
 func _credits() -> void:
 	var content=_modal("Kaynaklar ve lisanslar")
-	content.add_child(_label("Kenney · Mini Arena, Space Shooter Remastered\nve Interface Sounds · CC0 1.0\nkenney.nl\n\nGodot Engine contributors · Multiplayer Bomber\nBomba Arenası için uyarlanmış örnek · MIT\ngithub.com/godotengine/godot-demo-projects\n\nRubik · SIL Open Font License\nCep Arena · MIT",16,MUTED))
+	content.add_child(_label("Kenney · Mini Arena, Space Shooter Remastered\nInterface Sounds, Top-down Tanks Remastered,\nSports Pack, Tiny Dungeon, Impact Sounds\nve Digital Audio · CC0 1.0\nkenney.nl\n\nGodot Engine contributors · Multiplayer Bomber\nBomba Arenası için uyarlanmış örnek · MIT\ngithub.com/godotengine/godot-demo-projects\n\nRubik · SIL Open Font License\nCep Arena · MIT",16,MUTED))
 	content.add_child(_label("Lisans metinleri oyun paketine dahildir.",13,MINT))
 
 func _local_setup() -> void:
@@ -508,7 +581,7 @@ func _action_label() -> String:
 	if not device_slots.is_empty() and device_slots[0]>=0:
 		var name_value=Input.get_joy_name(device_slots[0]).to_lower()
 		return "× / R1" if "ps4" in name_value or "sony" in name_value or "dual" in name_value or "playstation" in name_value else "A / RB"
-	return "Boşluk / Sağ tık / Şimşek"
+	return "Boşluk / Sol tık"
 
 func _primary_device() -> int:
 	var devices=Input.get_connected_joypads()
@@ -750,6 +823,7 @@ func begin_match(game: int, new_roster: Array, seed_value: int, index: int, tota
 	inputs.clear()
 	input_times.clear()
 	last_event=0
+	last_sfx_time=-1.0
 	vibration_state.clear()
 	if connected and not multiplayer.is_server(): device_slots=[_primary_device()]
 	_show_game()
@@ -763,7 +837,7 @@ func _show_game() -> void:
 		visual.add_child(arena)
 		arena.setup(selected,roster.size())
 	else:
-		arena=View2D.new()
+		arena=View2D.new() if selected<7 else ArcadeView.new()
 		visual.add_child(arena)
 		arena.state=sim.state
 	pads=Controls.new()
@@ -771,6 +845,10 @@ func _show_game() -> void:
 	pads.slots=[]
 	pads.devices=device_slots.duplicate()
 	pads.deadzone=deadzone
+	pads.show_touch=OS.has_feature("mobile")
+	pads.secondary_enabled=not Sim.GAMES[selected].secondary.is_empty()
+	pads.action_name=Sim.GAMES[selected].action.to_upper()
+	pads.secondary_name=Sim.GAMES[selected].secondary.to_upper()
 	pads.hybrid=mode!="local" and primary_source==0
 	for i in range(roster.size()):
 		if (not connected and not roster[i].bot) or (connected and roster[i].peer==multiplayer.get_unique_id()): pads.slots.append(i)
@@ -819,6 +897,7 @@ func _show_game() -> void:
 	ui.add_child(countdown)
 
 func _physics_process(dt: float) -> void:
+	if quitting: return
 	auto_clock+=dt
 	if connecting:
 		connect_clock+=dt
@@ -828,7 +907,8 @@ func _physics_process(dt: float) -> void:
 		_start_network()
 	if args.has("exit-after") and auto_clock>float(args["exit-after"]):
 		print("SMOKE_CLIENT_FRAMES ",network_frames)
-		get_tree().quit(0 if network_frames>10 else 1)
+		_quit_app(0 if demo or network_frames>10 else 1)
+		return
 	if screen!="play" or pads==null: return
 	var local_inputs: Dictionary = {}
 	for n in range(pads.slots.size()):
@@ -841,13 +921,13 @@ func _physics_process(dt: float) -> void:
 		if client_input_clock>=0.04 and not local_inputs.is_empty():
 			client_input_clock=0
 			var input: Dictionary = local_inputs.values()[0]
-			submit_input.rpc_id(1,input.axis,input.action)
+			submit_input.rpc_id(1,input.axis,input.action,input.get("secondary",false))
 	else:
 		inputs.merge(local_inputs,true)
 		for slot in input_times.keys():
 			if Time.get_ticks_msec()-input_times[slot]>450: inputs[slot]={"axis":Vector2.ZERO,"action":false}
 		# Three seconds to read the rule, with movement paused on every device.
-		if not sim.state.has("countdown"): sim.state.countdown=0.0 if args.has("smoke-host") or demo else 3.0
+		if not sim.state.has("countdown"): sim.state.countdown=0.0 if args.has("smoke-host") or demo else 4.0
 		if sim.state.countdown>0: sim.state.countdown=maxf(0,sim.state.countdown-dt)
 		else: sim.step(dt,inputs)
 		packet_clock+=dt
@@ -857,13 +937,13 @@ func _physics_process(dt: float) -> void:
 		if sim.state.phase=="result": _finish_round()
 
 @rpc("any_peer","call_remote","unreliable_ordered",1)
-func submit_input(axis: Vector2, action: bool) -> void:
+func submit_input(axis: Vector2, action: bool, secondary: bool) -> void:
 	if not connected or not multiplayer.is_server() or screen!="play": return
 	if not is_finite(axis.x) or not is_finite(axis.y): return
 	var sender=multiplayer.get_remote_sender_id()
 	for i in range(roster.size()):
 		if roster[i].peer==sender and not roster[i].bot:
-			inputs[i]={"axis":axis.limit_length(1),"action":action}
+			inputs[i]={"axis":axis.limit_length(1),"action":action,"secondary":secondary}
 			input_times[i]=Time.get_ticks_msec()
 
 @rpc("authority","call_remote","unreliable_ordered",2)
@@ -893,7 +973,7 @@ func _process(dt: float) -> void:
 				elif selected==5: _rumble_slot(i,0.35,0.5,0.22)
 				else: _rumble_slot(i,0.5,0.35,0.15)
 			elif selected==3 and p.score>old.score: _rumble_slot(i,0.8,0.7,0.4)
-			elif selected==0 and p.score>old.score: _rumble_slot(i,0.45,0.2,0.12)
+			elif p.score-old.score>=0.9: _rumble_slot(i,0.45,0.2,0.12)
 			vibration_state[i]={"score":p.score,"hurt":p.hurt,"boost":p.boost}
 	var countdown=ui.get_node_or_null("Countdown")
 	if countdown!=null:
@@ -905,10 +985,17 @@ func _process(dt: float) -> void:
 		target_chip.get_child(0).text=(["YEŞİLE","MERCANA","MORA","SARIYA"][int(sim.state.target)]+" KOŞ!  "+str(int(ceil(seconds))) if seconds>0 else "GÜVENDE KAL!")
 	if sim.state.event!=last_event:
 		last_event=sim.state.event
-		_play_sound("score")
+		if sim.state.time-last_sfx_time>0.08:
+			last_sfx_time=sim.state.time
+			var effect="score"
+			if selected>=7 and not sim.state.fx.is_empty():
+				var kind: String=sim.state.fx.back().kind
+				effect={"hit":"hit","parry":"metal","shot":"laser" if selected in [14,27] else "shoot","blast":"blast","fall":"fall","goal":"goal","pin":"wood","brick":"wood","bank":"goal","flag":"goal","correct":"collect","react":"collect","combo":"collect"}.get(kind,"score")
+			elif selected==2: effect="jump"
+			_play_sound(effect)
 	if pads!=null and not pads.slots.is_empty():
 		var p: Dictionary = sim.state.players[pads.slots[0]]
-		hint.text="HAMLE HAZIR  ·  "+_action_label() if p.cool<=0 else "Hamle %.1f sn sonra hazır"%p.cool
+		hint.text=Sim.GAMES[selected].action.to_upper()+"  ·  "+_action_label()+("  |  "+Sim.GAMES[selected].secondary+": X / □ / E" if not Sim.GAMES[selected].secondary.is_empty() else "")+("  ·  %.1f sn"%p.cool if p.cool>0 else "")
 
 func _finish_round() -> void:
 	var order=sim.rankings()
@@ -1015,14 +1102,20 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 func _play_sound(which: String) -> void:
-	if not sound or DisplayServer.get_name()=="headless" or args.has("capture"): return
-	sfx.stream=load("res://assets/licensed/interface-sounds/%s.ogg"%{"tap":"click_001","select":"select_001","finish":"confirmation_001","back":"back_001"}[which]) if which in ["tap","select","finish","back"] else load("res://assets/%s.wav"%which)
-	sfx.play()
+	if quitting or not sound or DisplayServer.get_name()=="headless" or args.has("capture"): return
+	var streams={"tap":"interface-sounds/click_001","select":"interface-sounds/select_001","finish":"interface-sounds/confirmation_001","back":"interface-sounds/back_001","hit":"impact-sounds/impactPunch_medium_000","shoot":"impact-sounds/impactPunch_heavy_000","metal":"impact-sounds/impactMetal_light_000","wood":"impact-sounds/impactWood_medium_000","laser":"digital-audio/laser2","blast":"digital-audio/lowDown","jump":"digital-audio/highUp","fall":"digital-audio/lowDown","goal":"digital-audio/threeTone1","collect":"digital-audio/powerUp2"}
+	var channel: AudioStreamPlayer=sound_pool[sound_cursor% sound_pool.size()]
+	sound_cursor+=1
+	channel.stream=load("res://assets/licensed/%s.ogg"%streams[which]) if which in streams else load("res://assets/%s.wav"%which)
+	channel.pitch_scale=1.0 if which in ["tap","select","finish","back","goal"] else randf_range(0.94,1.06)
+	channel.play()
 
 func _load_settings() -> void:
 	if args.has("test-ui"): return
 	var config=ConfigFile.new()
 	if config.load("user://settings.cfg")!=OK: return
+	favorites=config.get_value("player","favorites",[])
+	favorites=favorites.filter(func(i):return i is int and i>=0 and i<Sim.GAMES.size())
 	player_name=_safe_name(str(config.get_value("player","name","Oyuncu")))
 	sound=bool(config.get_value("audio","enabled",true))
 	difficulty=clampi(int(config.get_value("bots","difficulty",1)),0,2)
@@ -1038,6 +1131,7 @@ func _save_settings() -> void:
 	if args.has("smoke-host") or args.has("smoke-client") or args.has("demo") or args.has("test-ui"): return
 	var config=ConfigFile.new()
 	config.set_value("player","name",player_name)
+	config.set_value("player","favorites",favorites)
 	config.set_value("audio","enabled",sound)
 	config.set_value("bots","difficulty",difficulty)
 	config.set_value("gamepad","rumble",rumble_enabled)
@@ -1050,7 +1144,9 @@ func _save_settings() -> void:
 	config.save("user://settings.cfg")
 
 func _exit_tree() -> void:
-	if sfx!=null:
-		sfx.stop()
-		sfx.stream=null
+	for channel in sound_pool:
+		if is_instance_valid(channel):
+			channel.stop()
+			channel.stream=null
+	sound_pool.clear()
 	for device in Input.get_connected_joypads(): Input.stop_joy_vibration(device)

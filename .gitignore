@@ -10,3 +10,5 @@ qa/*.xml
 *.p12
 .DS_Store
 game/native/*.exe
+__pycache__/
+qa/*.jpg

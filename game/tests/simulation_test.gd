@@ -38,12 +38,14 @@ func _initialize() -> void:
 	check(sim.state.players[0].score<0,"Wrong color penalizes player")
 	check(sim.state.players[0].hurt>0,"Color fall grants respawn protection")
 	sim.begin(2,roster(2),47)
-	sim.state.players[0].p=Vector2(0.5,0)
+	sim.state.time=2.1
+	sim.state.players[0].p=Vector2.from_angle(Sim.beam_angle(2.11))*0.5
 	sim.step(0.01,{})
 	check(sim.state.players[0].score<0,"Beam collision penalizes player")
 	sim.begin(2,roster(2),47)
-	sim.state.players[0].p=Vector2(0.5,0)
-	sim.step(0.01,{0:{"axis":Vector2.ZERO,"action":true}})
+	sim.state.time=2.1
+	sim.state.players[0].p=Vector2.from_angle(Sim.beam_angle(2.16))*0.5
+	sim.step(0.06,{0:{"axis":Vector2.ZERO,"action":true}})
 	check(sim.state.players[0].score>=0,"Jump avoids beam")
 	sim.begin(3,roster(2),47)
 	sim.state.puck=Vector2(0,0.93)
@@ -89,6 +91,11 @@ func _initialize() -> void:
 	check(sim.state.bombs[0].timer<=0.01,"Explosions trigger adjacent bombs")
 	sim.step(0.02,{})
 	check(sim.state.bombs.is_empty(),"Chain reaction resolves on the next simulation step")
+	# Holding jump repeats after landing, and its recovery is shorter than one second.
+	sim.begin(2,roster(2),47)
+	for tick in range(64): sim.step(1.0/60,{0:{"action":true}})
+	check(sim.state.players[0].boost>0.65,"Held jump repeats without a 2.3 second wait")
+	check(Sim.GAMES[2].duration>=90,"Jump match lasts at least 90 seconds")
 	for count in [2,3,4]:
 		for game in range(Sim.GAMES.size()):
 			for difficulty in range(3):
@@ -111,6 +118,12 @@ func _initialize() -> void:
 	Input.flush_buffered_events()
 	check(controls.read(0).axis.x>0,"Keyboard drives its assigned player")
 	check(controls.read(1).axis==Vector2.ZERO,"Keyboard never drives another player's gamepad")
+	var secondary=InputEventKey.new()
+	secondary.physical_keycode=KEY_E;secondary.keycode=KEY_E;secondary.pressed=true
+	Input.parse_input_event(secondary);Input.flush_buffered_events()
+	check(controls.read(0).secondary and not controls.read(1).secondary,"Second action stays on the assigned keyboard player")
+	var secondary_release=secondary.duplicate()
+	secondary_release.pressed=false;Input.parse_input_event(secondary_release);Input.flush_buffered_events()
 	var release=key.duplicate()
 	release.pressed=false
 	Input.parse_input_event(release)
@@ -125,6 +138,13 @@ func _initialize() -> void:
 		touch.pressed=true
 		controls._input(touch)
 	check(controls.read(0).axis.x>0 and controls.read(1).axis.x<0,"Touch IDs remain independent")
+	var action_touch=InputEventScreenTouch.new()
+	action_touch.index=3;action_touch.position=controls.centers(0)[1];action_touch.pressed=true;controls._input(action_touch)
+	check(controls.read(0).action and not controls.read(1).action,"Touch action belongs only to its player")
+	controls.secondary_enabled=true
+	var secondary_touch=InputEventScreenTouch.new()
+	secondary_touch.index=4;secondary_touch.position=controls.centers(1)[2];secondary_touch.pressed=true;controls._input(secondary_touch)
+	check(not controls.read(0).secondary and controls.read(1).secondary,"Secondary touch remains independent")
 	controls.free()
 	print("SIMULATION_CHECKS ",checks," FAILURES ",failures)
 	quit(0 if failures==0 else 1)

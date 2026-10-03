@@ -6,6 +6,7 @@ const Bomber = preload("res://scripts/bomber_rules.gd")
 const FONT=preload("res://assets/Rubik.ttf")
 const BOMBER_SHEET=preload("res://assets/licensed/godot-bomber/charwalk.png")
 const EXPLOSION=preload("res://assets/licensed/godot-bomber/explosion.png")
+const DUNGEON=preload("res://assets/licensed/tiny-dungeon/tilemap.png")
 const SHIELD=preload("res://assets/licensed/space-shooter-remastered/shield1.png")
 var ships: Array=[]
 var meteor: Texture2D
@@ -174,6 +175,7 @@ func _bomber() -> void:
 			draw_style_box(_box(Color("20344c") if (x+y)%2==0 else Color("1a2c42")),rect)
 			if cell in state.walls:
 				draw_style_box(_box(Color("567084")),rect.grow(-2))
+				draw_texture_rect_region(DUNGEON,rect.grow(-3),Rect2(32,0,16,16),Color("b5c7d5"))
 				draw_line(pos+Vector2(-tile*0.3,-tile*0.3),pos+Vector2(tile*0.3,-tile*0.3),Color("9bb2c2"),3,true)
 			elif cell in state.crates:
 				draw_style_box(_box(Color("a66f44")),rect.grow(-3))
