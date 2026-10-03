@@ -1,0 +1,12 @@
+.godot/
+tools/
+artifacts/
+qa/*.log
+qa/*.json
+qa/*.png
+qa/*.xml
+.secrets/
+*.keystore
+*.p12
+.DS_Store
+game/native/*.exe
