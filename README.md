@@ -16,6 +16,7 @@ Android ve Windows için Türkçe, 2–4 oyunculu bir mini oyun uygulaması. God
 | Neon Hokey | 2D | Kendi kaleni koru, rakibe gol at |
 | Roket Ralli | 2D | Engellerden kaç, turbo ile yarış |
 | Meteor Yağmuru | 2D | Meteorlardan kaç, kalkan kullan |
+| Bomba Arenası | 2D | Bomba bırak, sandıkları kır, patlamadan kaç |
 
 Tek maç veya üç farklı oyundan oluşan turnuva. Eksik oyuncuları botlar tamamlar. Botlar rahat, normal ve zorlu seviyelerde oynar. Skorlar eşitse ortak birincilik geçerlidir; turnuva puanları da eşit sıradaki oyuncular için eşit dağıtılır.
 
@@ -38,6 +39,16 @@ Tek maç veya üç farklı oyundan oluşan turnuva. Eksik oyuncuları botlar tam
 
 Ayarlar → Gamepad ve titreşim: giriş kaynağı, otomatik / Xbox / PlayStation gösterimi, ölü bölge, titreşim gücü ve test düğmesi. İki motorlu rumble, çarpışmada güçlü; turbo, zıplama ve kalkanda farklı kısa darbeler; kristal, gol ve maç sonucunda ayrı efektler verir. Direksiyon tipi FFB yoktur. Titreşim ve model tanıma, işletim sistemi ve kontrolcü sürücüsüne bağlıdır. Xbox 360 için uygun USB alıcısı / OTG gerekebilir.
 
+**Menüde gamepad:** Sol çubuk veya yön tuşlarıyla gezin; A / × ile seç, B / ○ ile geri dön. Ayar pencereleri kendi odağını korur; kapanınca önceki düğmeye dönülür. Kaydırıcılarda sağ/sol, açılır seçeneklerde yukarı/aşağı kullanılır.
+
+**Çıkış:** Oyun içindeki Ana menü düğmesi, B / ○, Start veya Esc ana menüye döner. Ana menüdeki Çık düğmesi uygulamayı kapatır. Android sistem geri tuşu önce pencereyi kapatır veya maçtan menüye döner; ana menüde uygulamadan çıkar.
+
+## Görseller ve açık lisanslı oyun
+
+1.1.0'da 3D arenalara Kenney'nin animasyonlu karakterleri, sütunları, ağaçları ve kupası eklendi. Uzay oyunları gemi / meteor / kalkan görselleri kullanır. Roket Ralli'nin şeritleri dikeydir; sağ/sol girdisi ekranda aynı yönde hareket eder. Kristal toplama halkaları, hokey diski izi, puan ve darbe efektleri vardır.
+
+Bomba Arenası, Godot'un MIT lisanslı Multiplayer Bomber örneği ve karakter/patlama görselleriyle uyarlanmıştır. Cep Arena'nın bot, bağımsız kontrolcü, LAN ve turnuva sistemini kullanır. Kenney paketleri CC0'dır. Kaynaklar, sürüm kayıtları ve lisans metinleri [THIRD-PARTY.md](THIRD-PARTY.md) dosyasında ve oyun içindeki Kaynaklar ve lisanslar ekranındadır.
+
 ## Derleme
 
 1. Python 3 ile `python scripts/fetch_tools.py`. Resmi Godot editörünü ve sadece Windows / Android şablonlarını indirir. ZIP CRC doğrulaması yapılır.
@@ -49,7 +60,7 @@ Ayarlar → Gamepad ve titreşim: giriş kaynağı, otomatik / Xbox / PlayStatio
 
 ## Doğrulama
 
-`python scripts/verify.py --captures` oyun kurallarını, 2/3/4 kişilik maçları, bot seviyelerini, kontrol izolasyonunu ve dört ayrı ENet sürecini sınar. Gerçek GPU ile yedi ekran görüntüsü üretir. Ayrıntılar [QA.md](QA.md).
+`python scripts/verify.py --captures` oyun kurallarını, 2/3/4 kişilik maçları, bot seviyelerini, kontrol izolasyonunu, menü gezinmesini ve dört ayrı ENet sürecini sınar. Gerçek GPU ile sekiz ekran görüntüsü üretir. Ayrıntılar [QA.md](QA.md).
 
 Windows'ta bağlı bir Xbox 360 tabanlı kontrolcünün tanınması, çubuk/tuş girdileri ve XInput titreşimi doğrulandı. Fiziksel telefon, PS4, aynı anda iki ayrı gamepad ve gerçek Radmin ağı testi henüz yapılmadı. Dört yerel süreç testi dört ayrı PC testi değildir.
 

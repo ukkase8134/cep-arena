@@ -4,7 +4,8 @@ const View3D=preload("res://scripts/arena_3d.gd")
 const View2D=preload("res://scripts/arena_2d.gd")
 const Controls=preload("res://scripts/controls.gd")
 const Haptics=preload("res://scripts/haptics.gd")
-const VERSION="1.0.0"
+const Navigation=preload("res://scripts/ui_navigation.gd")
+const VERSION="1.1.0"
 const DEFAULT_PORT=28742
 const INK=Color("0b1428")
 const PANEL=Color("14213a")
@@ -62,8 +63,11 @@ var primary_source=0
 var controller_message=""
 var vibration_state: Dictionary = {}
 var haptics: Node
+var navigation: Node
 
 func _ready() -> void:
+	get_tree().quit_on_go_back=false
+	get_window().go_back_requested.connect(_system_back)
 	Input.set_ignore_joypad_on_unfocused_application(false)
 	for argument in OS.get_cmdline_user_args():
 		var parts=argument.trim_prefix("--").split("=",true,1)
@@ -89,7 +93,7 @@ func _ready() -> void:
 	theme.set_stylebox("normal","Button",_style(PANEL,12))
 	theme.set_stylebox("hover","Button",_style(Color("253957"),12,MINT))
 	theme.set_stylebox("pressed","Button",_style(Color("304963"),12))
-	theme.set_stylebox("focus","Button",_style(Color(0,0,0,0),12,MINT))
+	theme.set_stylebox("focus","Button",_style(Color(0.5,0.96,0.8,0.16),12,MINT))
 	theme.set_stylebox("normal","LineEdit",_style(Color("1b2b48"),10))
 	theme.set_color("font_color","LineEdit",WHITE)
 	theme.set_color("font_placeholder_color","LineEdit",MUTED)
@@ -99,6 +103,12 @@ func _ready() -> void:
 	add_child(sfx)
 	haptics=Haptics.new()
 	add_child(haptics)
+	navigation=Navigation.new()
+	navigation.ui_root=ui
+	navigation.enabled=func():return screen!="play"
+	navigation.back=_back
+	navigation.moved.connect(func():_play_sound("select"))
+	add_child(navigation)
 	Input.joy_connection_changed.connect(_controller_changed)
 	multiplayer.peer_disconnected.connect(_peer_left)
 	multiplayer.connected_to_server.connect(_connected_ok)
@@ -107,7 +117,7 @@ func _ready() -> void:
 	_show_menu()
 	if args.has("demo"):
 		demo=true
-		selected=clampi(int(args.demo),0,5)
+		selected=clampi(int(args.demo),0,Sim.GAMES.size()-1)
 		_start_offline()
 	elif args.has("smoke-host"):
 		player_name="QA Host"
@@ -157,6 +167,7 @@ func _label(text_value: String, size_value=18, color=WHITE) -> Label:
 func _button(text_value: String, callback: Callable, accent=false) -> Button:
 	var button=Button.new()
 	button.text=text_value
+	button.set_meta("nav_key",text_value)
 	button.custom_minimum_size=Vector2(0,44)
 	button.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND
 	if accent:
@@ -166,10 +177,12 @@ func _button(text_value: String, callback: Callable, accent=false) -> Button:
 		button.add_theme_color_override("font_color",INK)
 		button.add_theme_color_override("font_hover_color",INK)
 		button.add_theme_color_override("font_pressed_color",INK)
-	button.pressed.connect(func(): _play_sound("tap"); callback.call())
+		button.add_theme_color_override("font_focus_color",INK)
+	button.pressed.connect(func(): _play_sound("tap"); callback.call(),CONNECT_DEFERRED)
 	return button
 
 func _clear() -> void:
+	if navigation!=null: navigation.capture_focus()
 	for child in ui.get_children(): child.free()
 	for child in visual.get_children(): child.free()
 	arena=null
@@ -180,6 +193,7 @@ func _clear() -> void:
 	background.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	visual.add_child(background)
+	if navigation!=null: navigation.refresh(null,true)
 
 func _page() -> VBoxContainer:
 	var margin=MarginContainer.new()
@@ -230,7 +244,7 @@ func _show_menu() -> void:
 	body.add_child(left)
 	left.add_child(_label("KÜÇÜK OYUNLAR. BÜYÜK REKABET.",12,MINT))
 	left.add_child(_label("Arkadaşlarını\narenaya çağır.",37))
-	var text=_label("Altı mini oyun. Dört renk.\nHer turda yeni bir şampiyon.",16,MUTED)
+	var text=_label("Yedi mini oyun. Dört renk.\nHer turda yeni bir şampiyon.",16,MUTED)
 	left.add_child(text)
 	var choice=HBoxContainer.new()
 	choice.add_theme_constant_override("separation",8)
@@ -257,47 +271,60 @@ func _show_menu() -> void:
 	small.toggled.connect(func(value):tournament=value)
 	left.add_child(small)
 	_spacer(left,true)
+	var game_scroll=ScrollContainer.new()
+	game_scroll.follow_focus=true
+	game_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	game_scroll.custom_minimum_size.x=660
+	game_scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	body.add_child(game_scroll)
 	var grid=GridContainer.new()
 	grid.columns=3
 	grid.add_theme_constant_override("h_separation",12)
 	grid.add_theme_constant_override("v_separation",12)
 	grid.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	grid.size_flags_stretch_ratio=1.0
-	body.add_child(grid)
-	for i in range(6): grid.add_child(_game_card(i))
+	game_scroll.add_child(grid)
+	for i in range(Sim.GAMES.size()): grid.add_child(_game_card(i))
 	var footer=HBoxContainer.new()
 	footer.add_theme_constant_override("separation",12)
 	box.add_child(footer)
 	footer.add_child(_button("+  LAN odası kur",_host))
 	footer.add_child(_button("↗  Odaya katıl",_join_dialog))
+	footer.add_child(_button("Çık",_quit_app))
 	_spacer(footer)
-	var footer_label=_label(message if not message.is_empty() else "Çevrimdışı hazır  ·  Wi-Fi / Radmin ile LAN",13,MUTED)
+	var footer_label=_label(message if not message.is_empty() else "Yön / çubuk: gezin  ·  A / ×: seç  ·  B / ○: geri",12,MUTED)
 	footer_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	footer_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	footer_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
 	footer.add_child(footer_label)
+	navigation.refresh(quick,true)
 
 func _game_card(index: int) -> Control:
 	var card=PanelContainer.new()
-	card.custom_minimum_size=Vector2(212,216)
+	card.custom_minimum_size=Vector2(208,156)
 	card.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	card.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	card.add_theme_stylebox_override("panel",_style(Color("192942") if index==selected else PANEL,16,Color(Sim.GAMES[index].color) if index==selected else Color("25314b")))
 	var content=VBoxContainer.new()
-	content.add_theme_constant_override("separation",10)
+	content.add_theme_constant_override("separation",6)
 	card.add_child(content)
 	var art=TextureRect.new()
 	art.texture=load("res://assets/game%d.svg"%index)
 	art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	art.custom_minimum_size=Vector2(0,100)
+	art.custom_minimum_size=Vector2(0,44)
 	art.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	content.add_child(art)
 	content.add_child(_label(Sim.GAMES[index].tag,10,Color(Sim.GAMES[index].color)))
 	content.add_child(_label(Sim.GAMES[index].name,18))
 	var choose=_button("Seçildi  ✓" if index==selected else "Oyunu seç  →",func():selected=index;_show_menu())
-	choose.custom_minimum_size.y=34
+	choose.set_meta("nav_key","game_%d"%index)
+	choose.custom_minimum_size.y=32
 	choose.add_theme_font_size_override("font_size",13)
+	for style_name in ["normal","hover","pressed"]:
+		var style=_style(Color("20344c") if style_name=="hover" else PANEL,10)
+		style.content_margin_top=5;style.content_margin_bottom=5
+		choose.add_theme_stylebox_override(style_name,style)
 	content.add_child(choose)
 	return card
 
@@ -306,6 +333,8 @@ func _modal(title: String) -> VBoxContainer:
 	shade.color=Color(0.01,0.02,0.06,0.88)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(shade)
+	var previous=ui.get_viewport().gui_get_focus_owner()
+	if previous!=null: shade.set_meta("return_focus",weakref(previous))
 	var center=CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	shade.add_child(center)
@@ -323,10 +352,34 @@ func _modal(title: String) -> VBoxContainer:
 	content.add_theme_constant_override("separation",14)
 	scroll.add_child(content)
 	content.add_child(_label(title,28))
-	var close=_button("Kapat",func():shade.queue_free())
+	var close=_button("Kapat",func():_close_modal(shade))
 	content.add_child(close)
 	content.move_child(close,0)
+	navigation.refresh(close)
 	return content
+
+func _close_modal(shade: Control) -> void:
+	var previous=shade.get_meta("return_focus",null)
+	shade.queue_free()
+	navigation.refresh(previous.get_ref() if previous!=null else null)
+
+func _back() -> void:
+	var children=ui.get_children()
+	children.reverse()
+	for child in children:
+		if child is ColorRect and not child.is_queued_for_deletion():
+			_close_modal(child)
+			return
+	if screen!="menu": _leave()
+
+func _quit_app() -> void:
+	for device in Input.get_connected_joypads(): haptics.stop(device)
+	_disconnect()
+	get_tree().quit()
+
+func _system_back() -> void:
+	if screen=="menu" and navigation.scope()==ui: _quit_app()
+	else: _back()
 
 func _settings() -> void:
 	var content=_modal("Oyun ayarları")
@@ -350,11 +403,17 @@ func _settings() -> void:
 	if OS.get_name()!="Android":
 		content.add_child(_button("Tam ekranı değiştir",_fullscreen))
 	content.add_child(_button("Gamepad ve titreşim ayarları",_controller_settings))
+	content.add_child(_button("Kaynaklar ve lisanslar",_credits))
 	content.add_child(_label("Klavye: WASD / Oklar  ·  Hamle: Boşluk / Sağ tık\nGamepad: sol çubuk / yön tuşları + A / × / R1\nTelefonda: joystick + şimşek veya gamepad.",14,MUTED))
 	content.add_child(_label("%d maç  ·  %d galibiyet  ·  v%s"%[stats.matches,stats.wins,VERSION],13,MINT))
 
 func _fullscreen() -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode()==DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+func _credits() -> void:
+	var content=_modal("Kaynaklar ve lisanslar")
+	content.add_child(_label("Kenney · Mini Arena, Space Shooter Remastered\nve Interface Sounds · CC0 1.0\nkenney.nl\n\nGodot Engine contributors · Multiplayer Bomber\nBomba Arenası için uyarlanmış örnek · MIT\ngithub.com/godotengine/godot-demo-projects\n\nRubik · SIL Open Font License\nCep Arena · MIT",16,MUTED))
+	content.add_child(_label("Lisans metinleri oyun paketine dahildir.",13,MINT))
 
 func _local_setup() -> void:
 	var content=_modal("Aynı cihazda birlikte oyna")
@@ -387,7 +446,7 @@ func _controller_settings() -> void:
 	var devices=Input.get_connected_joypads()
 	content.add_child(_label("Algılanan gamepad: %d"%devices.size(),16,MINT))
 	for device in devices: content.add_child(_label("%d · %s"%[device+1,Input.get_joy_name(device)],14,MUTED))
-	content.add_child(_label("Tuş gösterimi",14,MUTED))
+	content.add_child(_label("Giriş kaynağı",14,MUTED))
 	var source=OptionButton.new()
 	source.add_item("Otomatik · klavye/dokunmatik + ilk gamepad")
 	source.add_item("Klavye / mouse / dokunmatik")
@@ -395,6 +454,7 @@ func _controller_settings() -> void:
 	source.selected=mini(primary_source,source.item_count-1)
 	source.item_selected.connect(func(index):primary_source=index;_save_settings())
 	content.add_child(source)
+	content.add_child(_label("Tuş gösterimi",14,MUTED))
 	var layout=OptionButton.new()
 	for name_value in ["Otomatik algıla","Xbox / Xbox 360 · A","PlayStation / PS4 · ×"]: layout.add_item(name_value)
 	layout.selected=pad_layout
@@ -645,7 +705,7 @@ func _peer_left(peer_id: int) -> void:
 func _make_rounds() -> void:
 	rounds=[selected]
 	if tournament:
-		var options: Array = range(6)
+		var options: Array = range(Sim.GAMES.size())
 		options.erase(selected)
 		options.shuffle()
 		rounds.append(options[0])
@@ -719,7 +779,7 @@ func _show_game() -> void:
 	var bar=HBoxContainer.new()
 	bar.add_theme_constant_override("separation",16)
 	page.add_child(bar)
-	bar.add_child(_button("←  Çık",_leave))
+	bar.add_child(_button("←  Ana menü",_leave))
 	game_title=_label(Sim.GAMES[selected].name,26)
 	bar.add_child(game_title)
 	bar.add_child(_label("TUR %d / %d"%[round_index+1,rounds.size()],12,MUTED))
@@ -862,14 +922,14 @@ func _finish_round() -> void:
 	if args.has("smoke-host"):
 		smoke_rounds+=1
 		print("SMOKE_ROUND_PASS ",selected," SCORES ",sim.state.players.map(func(p):return p.score))
-		if smoke_rounds<6:
+		if smoke_rounds<Sim.GAMES.size():
 			await get_tree().create_timer(0.4).timeout
 			selected=smoke_rounds
 			rounds=[selected]
 			round_index=0
 			_begin_round()
 		else:
-			print("NETWORK_SMOKE_PASS 6 GAMES")
+			print("NETWORK_SMOKE_PASS ",Sim.GAMES.size()," GAMES")
 			await get_tree().create_timer(0.5).timeout
 			get_tree().quit(0)
 
@@ -945,25 +1005,22 @@ func show_results(value: Dictionary, totals: Array, index: int, total: int) -> v
 			else: _start_offline(),true)
 		again.disabled=not host
 		footer.add_child(again)
+	navigation.refresh(footer.get_children().back())
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode==KEY_F11: _fullscreen()
 		elif event.keycode==KEY_ESCAPE:
-			var children=ui.get_children()
-			children.reverse()
-			for child in children:
-				if child is ColorRect:
-					child.queue_free()
-					return
-			if screen in ["play","lobby","result","connecting"]: _leave()
+			_back()
+			get_viewport().set_input_as_handled()
 
 func _play_sound(which: String) -> void:
 	if not sound or DisplayServer.get_name()=="headless" or args.has("capture"): return
-	sfx.stream=load("res://assets/%s.wav"%which)
+	sfx.stream=load("res://assets/licensed/interface-sounds/%s.ogg"%{"tap":"click_001","select":"select_001","finish":"confirmation_001","back":"back_001"}[which]) if which in ["tap","select","finish","back"] else load("res://assets/%s.wav"%which)
 	sfx.play()
 
 func _load_settings() -> void:
+	if args.has("test-ui"): return
 	var config=ConfigFile.new()
 	if config.load("user://settings.cfg")!=OK: return
 	player_name=_safe_name(str(config.get_value("player","name","Oyuncu")))
@@ -978,7 +1035,7 @@ func _load_settings() -> void:
 	stats.wins=maxi(0,int(config.get_value("stats","wins",0)))
 
 func _save_settings() -> void:
-	if args.has("smoke-host") or args.has("smoke-client") or args.has("demo"): return
+	if args.has("smoke-host") or args.has("smoke-client") or args.has("demo") or args.has("test-ui"): return
 	var config=ConfigFile.new()
 	config.set_value("player","name",player_name)
 	config.set_value("audio","enabled",sound)

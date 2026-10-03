@@ -1,4 +1,5 @@
 extends RefCounted
+const Bomber=preload("res://scripts/bomber_rules.gd")
 ## The host runs all game rules. Clients send bounded input, never positions or scores.
 
 const GAMES = [
@@ -7,7 +8,8 @@ const GAMES = [
 	{"name":"Dönen Çember", "tag":"3D · ZIPLA", "desc":"Dönen ışınlar, dört rakip, tek şampiyon.", "rule":"Dönen ışından hamle ile zıpla. Her çarpışma 3 puan götürür.", "color":"ffcf70", "duration":45.0},
 	{"name":"Neon Hokey", "tag":"2D · GOL AT", "desc":"Kendi kaleni koru, diski rakibine gönder.", "rule":"Rakip kaleye gol at. Hamle ile diske sert vur. Kendi kalenden uzak tut!", "color":"78caff", "duration":60.0},
 	{"name":"Roket Ralli", "tag":"2D · YARIŞ", "desc":"Engelleri geç, turboya bas, öne fırla.", "rule":"Sağa ve sola yönelerek engellerden kaç. Hamle turbodur. En uzağa giden kazanır.", "color":"ff846b", "duration":45.0},
-	{"name":"Meteor Yağmuru", "tag":"2D · KAÇIN", "desc":"Uzay dar, meteorlar fazla. Refleksine güven.", "rule":"Meteorların yolundan kaç. Hamle kısa bir kalkan açar. Darbeler puan götürür.", "color":"f69bd0", "duration":45.0}
+	{"name":"Meteor Yağmuru", "tag":"2D · KAÇIN", "desc":"Uzay dar, meteorlar fazla. Refleksine güven.", "rule":"Meteorların yolundan kaç. Hamle kısa bir kalkan açar. Darbeler puan götürür.", "color":"f69bd0", "duration":45.0},
+	{"name":"Bomba Arenası", "tag":"2D · PATLAT", "desc":"Bırak, kaç, patlat. Sandıkları aç, rakibini yakala.", "rule":"Hamle ile bomba bırak! Patlama duvardan geçmez. Sandık +1, rakibe isabet +4 puan. Darbe -2 puan.", "color":"ffcf70", "duration":60.0}
 ]
 const COLORS = [Color("80f5cd"),Color("ff846b"),Color("b6a1ff"),Color("78caff")]
 const TILES = [Color("80f5cd"),Color("ff846b"),Color("b6a1ff"),Color("ffcf70")]
@@ -27,11 +29,24 @@ func begin(game_id: int, roster: Array, seed_value: int, duration := -1.0) -> vo
 		for i in range(36): state.items.append((i+i/6)%4)
 	elif game_id == 4:
 		for i in range(36): state.hazards.append({"p":Vector2(rng.randf_range(-0.78,0.78),3.0+i*2.1),"size":rng.randf_range(0.13,0.22)})
+	elif game_id == 6:
+		state.walls=[];state.crates=[];state.bombs=[];state.flames=[]
+		for x in range(9):
+			for y in range(9):
+				var at=Vector2i(x,y)
+				if x%2==1 and y%2==1: state.walls.append(at)
+				elif not Bomber.SPAWNS.any(func(s):return abs(s.x-x)+abs(s.y-y)<=2) and rng.randf()<0.48: state.crates.append(at)
+		for i in range(state.players.size()):
+			state.players[i].p=Bomber.position(Bomber.SPAWNS[i])
+			state.players[i].ai_clock=0.0
+			state.players[i].ai_target=Bomber.SPAWNS[i]
+			state.players[i].ai_action=false
 
 func _point(radius: float) -> Vector2:
 	return Vector2(rng.randf_range(-radius,radius),rng.randf_range(-radius,radius))
 
 func bot_input(i: int) -> Dictionary:
+	if state.game==6: return _bomber_bot(i)
 	var p: Dictionary = state.players[i]
 	var target: Vector2 = Vector2.ZERO
 	var action := false
@@ -87,6 +102,10 @@ func step(dt: float, inputs: Dictionary) -> void:
 	if state.is_empty() or state.phase != "play": return
 	state.time += dt
 	var game_id: int = state.game
+	if game_id==6:
+		_step_bomber(dt,inputs)
+		if state.time>=state.duration: state.time=state.duration;state.phase="result"
+		return
 	for i in range(state.players.size()):
 		var p: Dictionary = state.players[i]
 		var input: Dictionary = bot_input(i) if p.bot else inputs.get(i,{"axis":Vector2.ZERO,"action":false})
@@ -215,6 +234,121 @@ func _hit(p: Dictionary, penalty: float) -> void:
 	p.score -= penalty
 	p.hurt=1.15
 	state.event+=1
+
+func _bomber_bot(i: int) -> Dictionary:
+	var p: Dictionary=state.players[i]
+	if p.ai_clock>0: return _bomber_drive(p,p.ai_target,p.ai_action)
+	var current=Bomber.cell(p.p)
+	var danger: Array=[]
+	var blocked: Array=state.walls+state.crates
+	for bomb in state.bombs:
+		blocked.append(bomb.cell)
+		danger.append_array(Bomber.blast(bomb.cell,state.walls,state.crates))
+	for flame in state.flames: danger.append(flame.cell)
+	var goal=current
+	var best_cost=INF
+	var path: Array=[]
+	if current in danger:
+		for x in range(9):
+			for y in range(9):
+				var candidate=Vector2i(x,y)
+				if candidate in danger or candidate in blocked: continue
+				var route=Bomber.route(current,candidate,blocked)
+				if route.size()>0 and route.size()<best_cost: best_cost=route.size();path=route
+	else:
+		for target in state.players:
+			if target==p: continue
+			var route=Bomber.route(current,Bomber.cell(target.p),blocked+danger)
+			if route.size()>0 and route.size()<best_cost: best_cost=route.size();path=route
+		if path.is_empty():
+			for crate in state.crates:
+				for direction in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+					var candidate: Vector2i=crate+direction
+					if not Bomber.inside(candidate) or candidate in blocked or candidate in danger: continue
+					var route=Bomber.route(current,candidate,blocked+danger)
+					if route.size()>0 and route.size()<best_cost: best_cost=route.size();path=route
+	if path.size()>1: goal=path[1]
+	var useful=false
+	var blast=Bomber.blast(current,state.walls,state.crates)
+	for crate in state.crates:
+		if crate in blast: useful=true
+	for j in range(state.players.size()):
+		if j!=i and Bomber.cell(state.players[j].p) in blast: useful=true
+	# Never place a bomb without a reachable refuge outside its cross.
+	var refuge=false
+	if useful and p.cool<=0 and current not in danger:
+		for x in range(9):
+			for y in range(9):
+				var at=Vector2i(x,y)
+				if at in blast or at in blocked or at in danger: continue
+				var route=Bomber.route(current,at,blocked+danger)
+				if route.size()>1 and route.size()<7: refuge=true;break
+			if refuge: break
+	p.ai_clock=[0.3,0.18,0.12][difficulty];p.ai_target=goal;p.ai_action=useful and refuge
+	return _bomber_drive(p,goal,p.ai_action)
+
+func _bomber_drive(p: Dictionary, goal: Vector2i, action: bool) -> Dictionary:
+	var current=Bomber.cell(p.p)
+	var target=Bomber.position(goal)
+	var center=Bomber.position(current)
+	if goal.x!=current.x and abs(p.p.y-center.y)>0.02: target=Vector2(p.p.x,center.y)
+	elif goal.y!=current.y and abs(p.p.x-center.x)>0.02: target=Vector2(center.x,p.p.y)
+	return {"axis":((target-p.p)*8).limit_length(1)*[0.72,0.93,1.0][difficulty],"action":action and p.cool<=0 and not p.action_held}
+
+func _bomber_open(position_value: Vector2, old: Vector2) -> bool:
+	for at in state.walls+state.crates:
+		var delta: Vector2=(position_value-Bomber.position(at)).abs()
+		if delta.x<0.155 and delta.y<0.155: return false
+	for bomb in state.bombs:
+		if Bomber.cell(old)==bomb.cell: continue
+		var center=Bomber.position(bomb.cell)
+		if old.distance_to(center)<0.2 and position_value.distance_to(center)>=old.distance_to(center): continue
+		var delta: Vector2=(position_value-Bomber.position(bomb.cell)).abs()
+		if delta.x<0.145 and delta.y<0.145: return false
+	return true
+
+func _step_bomber(dt: float, inputs: Dictionary) -> void:
+	for i in range(state.players.size()):
+		var p: Dictionary=state.players[i]
+		p.cool=maxf(0,p.cool-dt);p.hurt=maxf(0,p.hurt-dt);p.boost=maxf(0,p.boost-dt)
+		p.ai_clock=maxf(0,p.ai_clock-dt)
+		var input: Dictionary=_bomber_bot(i) if p.bot else inputs.get(i,{})
+		var axis: Vector2=input.get("axis",Vector2.ZERO)
+		if not is_finite(axis.x) or not is_finite(axis.y): axis=Vector2.ZERO
+		axis=axis.limit_length(1)
+		p.v=axis*0.82
+		for coordinate in range(2):
+			var target: Vector2=p.p
+			target[coordinate]=clampf(target[coordinate]+p.v[coordinate]*dt,-0.8,0.8)
+			if _bomber_open(target,p.p): p.p=target
+		var pressed: bool=input.get("action",false)
+		var cell=Bomber.cell(p.p)
+		if pressed and not p.action_held and p.cool<=0 and not state.bombs.any(func(b):return b.cell==cell) and state.bombs.filter(func(b):return b.owner==i).size()<2:
+			state.bombs.append({"cell":cell,"owner":i,"timer":2.0})
+			p.cool=2.4;p.boost=0.3;state.event+=1
+		p.action_held=pressed
+	for flame in state.flames: flame.life-=dt
+	state.flames=state.flames.filter(func(f):return f.life>0)
+	for bomb in state.bombs: bomb.timer-=dt
+	var expired=state.bombs.filter(func(b):return b.timer<=0)
+	for bomb in expired:
+		state.bombs.erase(bomb)
+		var blast=Bomber.blast(bomb.cell,state.walls,state.crates)
+		for at in blast:
+			state.flames.append({"cell":at,"owner":bomb.owner,"life":0.45})
+			if at in state.crates: state.crates.erase(at);state.players[bomb.owner].score+=1
+			for other in state.bombs:
+				if other.cell==at: other.timer=minf(other.timer,0.01)
+		state.event+=1
+	for i in range(state.players.size()):
+		var p: Dictionary=state.players[i]
+		if p.hurt>0: continue
+		for flame in state.flames:
+			if Bomber.cell(p.p)==flame.cell:
+				p.score-=2;p.hurt=1.3;p.p=Bomber.position(Bomber.SPAWNS[i])
+				if flame.owner!=i: state.players[flame.owner].score+=4
+				state.event+=1
+				break
 
 func rankings() -> Array:
 	var order: Array = range(state.players.size())

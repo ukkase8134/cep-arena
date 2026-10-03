@@ -65,8 +65,32 @@ func _initialize() -> void:
 	sim.state.players[0].boost=0
 	sim.step(0.01,{})
 	check(sim.state.players[0].score<0,"Unshielded meteor hurts")
+	sim.begin(6,roster(2),47)
+	sim.state.crates=[Vector2i(2,0),Vector2i(3,0)]
+	sim.state.walls=[Vector2i(0,1)]
+	sim.step(0.01,{0:{"axis":Vector2.ZERO,"action":true}})
+	check(sim.state.bombs.size()==1,"Action places a bomber bomb")
+	sim.step(0.01,{0:{"axis":Vector2.ZERO,"action":true}})
+	check(sim.state.bombs.size()==1,"Held action cannot duplicate bomb")
+	sim.state.players[0].p=Vector2(0.8,0.8)
+	sim.state.players[1].p=Vector2(-0.6,-0.8)
+	for tick in range(125): sim.step(1.0/60,{})
+	check(Vector2i(2,0) not in sim.state.crates,"Explosion destroys its first crate")
+	check(Vector2i(3,0) in sim.state.crates,"Crate blocks the explosion behind it")
+	check(not sim.state.flames.any(func(f):return f.cell==Vector2i(0,1)),"Solid walls block the explosion")
+	check(sim.state.players[0].score>=5 and sim.state.players[1].score==-2,"Explosion awards its owner and penalizes the hit player")
+	check(sim.state.players[1].hurt>0,"Respawn protection prevents repeated flame damage")
+	sim.begin(6,roster(2),47)
+	sim.state.crates=[]
+	sim.state.bombs=[{"cell":Vector2i(0,0),"owner":0,"timer":2.0},{"cell":Vector2i(2,0),"owner":1,"timer":4.0}]
+	sim.state.bombs[0].timer=0.01
+	sim.state.players[0].p=Vector2(-0.8,0.8)
+	sim.step(0.02,{})
+	check(sim.state.bombs[0].timer<=0.01,"Explosions trigger adjacent bombs")
+	sim.step(0.02,{})
+	check(sim.state.bombs.is_empty(),"Chain reaction resolves on the next simulation step")
 	for count in [2,3,4]:
-		for game in range(6):
+		for game in range(Sim.GAMES.size()):
 			for difficulty in range(3):
 				sim.difficulty=difficulty
 				sim.begin(game,roster(count,true),1234+game,8.0)

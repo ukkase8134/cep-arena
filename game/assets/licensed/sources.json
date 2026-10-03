@@ -1,0 +1,37 @@
+[
+  {
+    "publisher": "Kenney",
+    "page": "https://kenney.nl/assets/mini-arena",
+    "download": "https://kenney.nl/media/pages/assets/mini-arena/88f977a0cb-1709220730/kenney_mini-arena.zip",
+    "sha256": "514760c2bc2457027451534a0b06a23f98beece166fb11ed2321226276b83c2c",
+    "license": "CC0 1.0"
+  },
+  {
+    "publisher": "Kenney",
+    "page": "https://kenney.nl/assets/space-shooter-remastered",
+    "download": "https://kenney.nl/media/pages/assets/space-shooter-remastered/2cbf3c45c8-1774771931/kenney_space-shooter-remastered.zip",
+    "sha256": "0edbe0ab5cda6c44901d8c42f150268fdfa0c8d48492098669f37e9c296929b5",
+    "license": "CC0 1.0"
+  },
+  {
+    "publisher": "Kenney",
+    "page": "https://kenney.nl/assets/interface-sounds",
+    "download": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+    "sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+    "license": "CC0 1.0"
+  },
+  {
+    "publisher": "Godot Engine contributors",
+    "page": "https://github.com/godotengine/godot-demo-projects/tree/3e08537616661a5883831628decab4c526260289/networking/multiplayer_bomber",
+    "revision": "3e08537616661a5883831628decab4c526260289",
+    "license": "MIT",
+    "adaptation": "Authoritative grid bomber rules, original character and explosion graphics",
+    "sha256": {
+      "bomb.gd": "9833c27219b6f128c0532ec0537246e3565e25a07c0c60e7fa238de3aa3a8eb1",
+      "player.gd": "3d21fb5ed1ab459275f509ee8e14aa471e606c133b7aefa08e55e96b8a78e1cf",
+      "charwalk.png": "d6037d0785b561c9ea9b59a4fa5b005b9d9a594a3a3e25589129bcd3e1e5566d",
+      "explosion.png": "9e33b8f18c5443f725e279365f45ed2d11d8482c60677dd2119caf86a81c9d95",
+      "LICENSE.md": "0339177149b474f7ff676d32218ecb3a8f2538955610023c3769763720d09e4c"
+    }
+  }
+]

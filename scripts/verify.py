@@ -11,6 +11,12 @@ def simulation():
     print(result.stdout+result.stderr)
     if result.returncode or 'FAIL:' in result.stderr or 'SCRIPT ERROR' in result.stderr: raise RuntimeError('Simulation checks failed')
 
+def ui():
+    result=subprocess.run(BASE+['--script','tests/ui_test.gd'],capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=25)
+    (QA/'ui.log').write_text(result.stdout+result.stderr,encoding='utf-8')
+    print(result.stdout+result.stderr)
+    if result.returncode or 'FAIL:' in result.stderr or 'ERROR:' in result.stderr or 'UI_CHECKS ' not in result.stdout: raise RuntimeError('UI checks failed')
+
 def network():
     logs=[]; children=[]
     try:
@@ -24,7 +30,7 @@ def network():
         for log in logs: log.flush()
         output=(QA/'host.log').read_text(encoding='utf-8')
         print(output)
-        if 'NETWORK_SMOKE_PASS 6 GAMES' not in output: raise RuntimeError('Host failed')
+        if 'NETWORK_SMOKE_PASS 7 GAMES' not in output: raise RuntimeError('Host failed')
         if output.count('REGISTERED ')<3: raise RuntimeError('Not all four devices connected')
         for i,child in enumerate(children):
             data=(QA/('host.log' if i==0 else f'client{i-1}.log')).read_text(encoding='utf-8')
@@ -36,7 +42,7 @@ def network():
         for log in logs: log.close()
 
 def captures():
-    for game in [-1,0,1,2,3,4,5]:
+    for game in [-1,0,1,2,3,4,5,6]:
         dest=QA/('menu.png' if game<0 else f'game{game}.png')
         cmd=[str(GODOT),'--path',str(ROOT/'game'),'--',f'--capture={dest.as_posix()}']
         if game>=0: cmd.append(f'--demo={game}')
@@ -47,5 +53,6 @@ def captures():
 
 if __name__=='__main__':
     simulation()
+    ui()
     network()
     if '--captures' in sys.argv: captures()
